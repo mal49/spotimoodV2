@@ -1,15 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 export default function Sidebar() {
     const location = useLocation();
-    const [playlists, setPlaylists] = useState([
-        { id: 1, name: 'My Top Songs' },
-        { id: 2, name: 'Workout Mix' },
-        { id: 3, name: 'Chills Vibes' },
-        { id: 4, name: 'Road Trip Anthems' },
-        { id: 5, name: 'Focus Music' }
-    ]);
+    const [playlists, setPlaylists] = useState([]);
+
+    useEffect(() => {
+        // Fetch playlists from backend
+        const fetchPlaylists = async () => {
+            try {
+                const response = await fetch('http://localhost:3001/api/playlists');
+                if (response.ok) {
+                    const data = await response.json();
+                    setPlaylists(data);
+                }
+            } catch (error) {
+                console.error('Error fetching playlists:', error);
+            }
+        };
+        fetchPlaylists();
+    }, [location.pathname]); // Refetch when navigating
 
     const NavLink = ({ icon, text, to }) => (
         <Link 
@@ -56,7 +66,7 @@ export default function Sidebar() {
                                 to={`/playlist/${playlist.id}`}
                                 className='hover:text-text-light p-2 rounded-md w-full text-left transition-colors'
                             >
-                                {playlist.name}
+                                {playlist.title}
                             </Link>
                         </li>
                     ))}

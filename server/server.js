@@ -134,7 +134,10 @@ app.get('/api/video/:videoId', async (req, res) => {
     }
 });
 
-app.post('/api/generate-mood-playlist', async (req, res)  => {
+// In-memory playlist storage
+const playlists = [];
+
+app.post('/api/generate-mood-playlist', async (req, res) => {
     if(!GEMINI_API_KEY) {
         console.error('GEMINI_API_KEY is not set in .env file.');
         return res.status(500).json({error: 'Server configuration error: API key missing.'});
@@ -212,8 +215,28 @@ app.post('/api/generate-mood-playlist', async (req, res)  => {
         }
 
         try {
-            const parseSongs = JSON.parse(jsonArrayText);
-            res.json(parseSongs);
+            const songs = JSON.parse(jsonArrayText);
+            
+            // Create a properly formatted playlist object
+            const playlist = {
+                id: Date.now().toString(),
+                title: `Mood Playlist - ${new Date().toLocaleDateString()}`,
+                description: `Generated playlist based on your mood`,
+                songs: songs.map(song => ({
+                    id: song.videoId || `song_${Math.random().toString(36).substr(2, 9)}`,
+                    title: song.title,
+                    artist: song.artist,
+                    album: "Mood Playlist",
+                    duration: "N/A",
+                    thumbnail: song.thumbnail || 'https://placehold.co/60x60/AA60C8/FFFFFF?text=Art'
+                })),
+                createdAt: new Date().toISOString()
+            };
+
+            playlists.push(playlist); // Save to in-memory storage
+            console.log('Current playlists array:', playlists);
+
+            res.json(playlist);
         } catch (parseError) {
             console.error('Error parsing JSON response:', parseError, jsonArrayText);
             throw new Error('Failed to parse playlist data from API response');
@@ -237,16 +260,14 @@ app.post('/api/playlists', async (req, res) => {
     }
 
     try {
-        // In a real application, you would save this to a database
-        // For now, we'll just return a success response
         const newPlaylist = {
-            id: Date.now().toString(), // Temporary ID generation
+            id: Date.now().toString(),
             title,
             description: description || '',
             songs: songs || [],
             createdAt: new Date().toISOString()
         };
-
+        playlists.push(newPlaylist);
         res.status(201).json(newPlaylist);
     } catch (error) {
         console.error('Error creating playlist:', error);
@@ -260,9 +281,7 @@ app.post('/api/playlists', async (req, res) => {
 // Get all playlists
 app.get('/api/playlists', async (req, res) => {
     try {
-        // In a real application, you would fetch this from a database
-        // For now, we'll return an empty array
-        res.json([]);
+        res.json(playlists);
     } catch (error) {
         console.error('Error fetching playlists:', error);
         res.status(500).json({ 
@@ -275,11 +294,12 @@ app.get('/api/playlists', async (req, res) => {
 // Get a specific playlist
 app.get('/api/playlists/:playlistId', async (req, res) => {
     const { playlistId } = req.params;
-
     try {
-        // In a real application, you would fetch this from a database
-        // For now, we'll return a 404
-        res.status(404).json({ error: 'Playlist not found' });
+        const playlist = playlists.find(p => p.id === playlistId);
+        if (!playlist) {
+            return res.status(404).json({ error: 'Playlist not found' });
+        }
+        res.json(playlist);
     } catch (error) {
         console.error('Error fetching playlist:', error);
         res.status(500).json({ 
@@ -293,11 +313,15 @@ app.get('/api/playlists/:playlistId', async (req, res) => {
 app.put('/api/playlists/:playlistId', async (req, res) => {
     const { playlistId } = req.params;
     const { title, description, songs } = req.body;
-
     try {
-        // In a real application, you would update this in a database
-        // For now, we'll return a 404
-        res.status(404).json({ error: 'Playlist not found' });
+        const playlist = playlists.find(p => p.id === playlistId);
+        if (!playlist) {
+            return res.status(404).json({ error: 'Playlist not found' });
+        }
+        if (title) playlist.title = title;
+        if (description) playlist.description = description;
+        if (songs) playlist.songs = songs;
+        res.json(playlist);
     } catch (error) {
         console.error('Error updating playlist:', error);
         res.status(500).json({ 
@@ -310,11 +334,13 @@ app.put('/api/playlists/:playlistId', async (req, res) => {
 // Delete a playlist
 app.delete('/api/playlists/:playlistId', async (req, res) => {
     const { playlistId } = req.params;
-
     try {
-        // In a real application, you would delete this from a database
-        // For now, we'll return a 404
-        res.status(404).json({ error: 'Playlist not found' });
+        const index = playlists.findIndex(p => p.id === playlistId);
+        if (index === -1) {
+            return res.status(404).json({ error: 'Playlist not found' });
+        }
+        playlists.splice(index, 1);
+        res.json({ success: true });
     } catch (error) {
         console.error('Error deleting playlist:', error);
         res.status(500).json({ 

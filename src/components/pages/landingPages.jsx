@@ -1,5 +1,8 @@
+import { useNavigate } from 'react-router-dom';
 
-export default function LandingPage({onGetStarted, onSignIn}){
+export default function LandingPage({onGetStarted}){
+    const navigate = useNavigate();
+
     return(
         <div className='flex flex-col h-full w-full justify-between items-center text-center p-8'>
             <nav className='w-full flex justify-between p-4 absolute top-0 right-0 z-10'>
@@ -22,7 +25,7 @@ export default function LandingPage({onGetStarted, onSignIn}){
                         discover new ways to express yourself.
                         </p>
                         <button onClick={onGetStarted} className='bg-[#AA60C8] text-white px-8 py-4 rounded-full font-bold text-lg shadow-lg hover:bg-[#C879E6] transition-all duration-300 transform hover:scale-105'>Get Started</button>
-                        <button onClick={onSignIn} className='bg-[#AA60C8] text-white px-8 py-4 rounded-full font-bold text-lg shadow-lg ml-3 hover:bg-[#C879E6] transition-all duration-300 transform hover:scale-105'>Sign In</button>
+                        <button onClick={() => navigate('/auth')} className='bg-[#AA60C8] text-white px-8 py-4 rounded-full font-bold text-lg shadow-lg ml-3 hover:bg-[#C879E6] transition-all duration-300 transform hover:scale-105'>Sign In</button>
                     </div>
                     <div className='flex-none bg-[#D4C3ED] w-[250px] h-[250px] rounded-lg shadow-xl flex items-center justify-center text-[#999] text-2xl font-semibold'>
                         250x250

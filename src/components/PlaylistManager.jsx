@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 export default function PlaylistManager() {
     const [playlists, setPlaylists] = useState([]);
@@ -9,10 +9,11 @@ export default function PlaylistManager() {
         description: ''
     });
     const navigate = useNavigate();
+    const location = useLocation();
 
     useEffect(() => {
         fetchPlaylists();
-    }, []);
+    }, [location.pathname]);
 
     const fetchPlaylists = async () => {
         try {
@@ -34,7 +35,7 @@ export default function PlaylistManager() {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(newPlaylist),
+                body: JSON.stringify({ ...newPlaylist, songs: [] }),
             });
 
             if (response.ok) {

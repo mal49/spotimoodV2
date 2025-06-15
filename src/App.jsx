@@ -10,6 +10,7 @@ import PlaylistManager from './components/PlaylistManager.jsx'
 import SearchResults from './components/SearchResults.jsx'
 import { PlayerProvider, usePlayer } from './context/PlayerContext';
 import PlaylistDetail from './components/PlaylistDetail.jsx'
+import AuthPage from './components/pages/authPage.jsx'
 
 function SongAdder() {
   const { addToQueue } = usePlayer();
@@ -58,6 +59,7 @@ function App() {
   const [generatedPlaylist, setGeneratedPlaylist] = useState(null);
   const [showMoodQuestionnaire, setShowMoodQuestionnaire] = useState(false);
   const [userHasStoredMood, setUsersHadStoresMood] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
     const storedMood = localStorage.getItem('userMood');
@@ -68,9 +70,7 @@ function App() {
 
   const handleGetStarted = () => {
     setShowMainApp(true);
-    if(!userHasStoredMood) {
-      setShowMoodQuestionnaire(true);
-    }
+    setShowMoodQuestionnaire(true);
   };
 
   const handleMoodSubmitted = (mood) => {
@@ -79,12 +79,24 @@ function App() {
     setShowMoodQuestionnaire(false);
   };
 
+  const handleAuthSuccess = () => {
+    setIsAuthenticated(true);
+    setShowMainApp(true);
+    if (!userHasStoredMood) {
+      setShowMoodQuestionnaire(true);
+    }
+  };
+
   return (
     <PlayerProvider>
       <Router>
         <div className={`h-screen ${!showMainApp ? 'bg-light-purple-bg' : 'bg-dark-bg'}`}>
           {!showMainApp ? (
-            <LandingPage onGetStarted={handleGetStarted}/>
+            <Routes>
+              <Route path="/" element={<LandingPage onGetStarted={handleGetStarted}/>} />
+              <Route path="/auth" element={<AuthPage onAuthSuccess={handleAuthSuccess} />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
           ) : (
             <MainLayout>
               <Routes>

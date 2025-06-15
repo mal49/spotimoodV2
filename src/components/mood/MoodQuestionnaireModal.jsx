@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Question from './Question';
 
 const moods = [
@@ -13,6 +14,7 @@ const moods = [
 const MoodQuestionnaireModal = ({ onClose, onSubmitMood }) => {
   const [selectedMood, setSelectedMood] = useState(null);
   const [step, setStep] = useState(1);
+  const navigate = useNavigate();
 
   const handleMoodSelect = (mood) => {
     setSelectedMood(mood);
