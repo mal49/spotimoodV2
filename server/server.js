@@ -217,19 +217,54 @@ app.post('/api/generate-mood-playlist', async (req, res) => {
         try {
             const songs = JSON.parse(jsonArrayText);
             
+            // Search YouTube for each song to get actual video IDs
+            const songsWithVideoIds = await Promise.all(songs.map(async (song) => {
+                try {
+                    const searchQuery = `${song.title} ${song.artist}`;
+                    const searchResponse = await youtube.search.list({
+                        part: ['snippet'],
+                        q: searchQuery,
+                        type: ['video'],
+                        videoCategoryId: '10', // Music category
+                        maxResults: 1
+                    });
+
+                    const videoData = searchResponse.data.items.length > 0 
+                        ? searchResponse.data.items[0] 
+                        : null;
+                    
+                    const videoId = videoData ? videoData.id.videoId : null;
+                    const thumbnail = videoData ? videoData.snippet.thumbnails.high.url : 'https://placehold.co/60x60/AA60C8/FFFFFF?text=Art';
+
+                    return {
+                        id: videoId ? `https://www.youtube.com/watch?v=${videoId}` : `song_${Math.random().toString(36).substr(2, 9)}`,
+                        title: song.title,
+                        artist: song.artist,
+                        album: "Mood Playlist",
+                        duration: "N/A",
+                        thumbnail: thumbnail,
+                        videoId: videoId
+                    };
+                } catch (searchError) {
+                    console.error(`Error searching for song "${song.title}" by "${song.artist}":`, searchError);
+                    return {
+                        id: `song_${Math.random().toString(36).substr(2, 9)}`,
+                        title: song.title,
+                        artist: song.artist,
+                        album: "Mood Playlist",
+                        duration: "N/A",
+                        thumbnail: 'https://placehold.co/60x60/AA60C8/FFFFFF?text=Art',
+                        videoId: null
+                    };
+                }
+            }));
+            
             // Create a properly formatted playlist object
             const playlist = {
                 id: Date.now().toString(),
                 title: `Mood Playlist - ${new Date().toLocaleDateString()}`,
                 description: `Generated playlist based on your mood`,
-                songs: songs.map(song => ({
-                    id: song.videoId || `song_${Math.random().toString(36).substr(2, 9)}`,
-                    title: song.title,
-                    artist: song.artist,
-                    album: "Mood Playlist",
-                    duration: "N/A",
-                    thumbnail: song.thumbnail || 'https://placehold.co/60x60/AA60C8/FFFFFF?text=Art'
-                })),
+                songs: songsWithVideoIds,
                 createdAt: new Date().toISOString()
             };
 
