@@ -134,9 +134,8 @@ export default function NowPlayingBar() {
             min="0"
             max="100"
             value={volume}
-            onChange={isPlaceholder ? undefined : (e) => setVolume(parseInt(e.target.value))}
+            onChange={(e) => setVolume(parseInt(e.target.value))}
             className="w-28 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-primary-purple"
-            disabled={isPlaceholder}
           />
         </div>
       </div>

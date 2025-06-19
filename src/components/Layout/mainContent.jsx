@@ -3,7 +3,7 @@ import HomePage from '../pages/homePage.jsx';
 import PlaylistPage from '../pages/playlistPage.jsx'
 
 export default function MainContent( {currentPage, generatedPlaylist, setGeneratedPlaylist, setCurrentPage, userHasStoredMood} ){
-    switch(currenPage) {
+    switch(currentPage) {
         case 'home':
             return(
                 <HomePage 

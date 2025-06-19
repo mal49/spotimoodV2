@@ -1,8 +1,10 @@
 import React, {useState, useEffect, useCallback} from 'react';
 import { useNavigate } from 'react-router-dom';
 import SectionCarousel from '../UI/SectionCarousel.jsx';
+import { useApp } from '../../context/AppContext.jsx';
 
-export default function HomePage({ setGeneratedPlaylist, userHasStoredMood }) {
+export default function HomePage() {
+    const { setGeneratedPlaylist, userHasStoredMood } = useApp();
     const navigate = useNavigate();
     const [moodInput, setMoodInput] = useState('');
     const [isLoadingMoodPlaylist, setIsLoadingMoodPlaylist] = useState(false);

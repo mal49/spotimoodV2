@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSearch } from '../context/SearchContext.jsx';
 
 export default function SearchBar() {
-    const [query, setQuery] = useState('');
+    const { query, setQuery } = useSearch();
     const navigate = useNavigate();
 
     const handleSubmit = (e) => {

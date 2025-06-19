@@ -1,88 +1,66 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { usePlayer } from '../context/PlayerContext';
+import { usePlaylist } from '../context/PlaylistContext';
 
 export default function PlaylistDetail() {
     const { playlistId } = useParams();
     const navigate = useNavigate();
     const { setQueue, setCurrentIndex, setPlaying } = usePlayer();
-    const [playlist, setPlaylist] = useState(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState(null);
+    const { 
+        currentPlaylist, 
+        isLoading, 
+        error, 
+        fetchPlaylistById, 
+        updatePlaylist, 
+        deletePlaylist 
+    } = usePlaylist();
+    
     const [isEditing, setIsEditing] = useState(false);
     const [editedTitle, setEditedTitle] = useState('');
     const [editedDescription, setEditedDescription] = useState('');
 
     useEffect(() => {
-        fetchPlaylist();
-    }, [playlistId]);
+        fetchPlaylistById(playlistId);
+    }, [playlistId, fetchPlaylistById]);
 
-    const fetchPlaylist = async () => {
-        try {
-            const response = await fetch(`http://localhost:3001/api/playlists/${playlistId}`);
-            if (!response.ok) {
-                throw new Error('Playlist not found');
-            }
-            const data = await response.json();
-            setPlaylist(data);
-            setEditedTitle(data.title);
-            setEditedDescription(data.description);
-        } catch (err) {
-            setError(err.message);
-        } finally {
-            setIsLoading(false);
+    useEffect(() => {
+        if (currentPlaylist) {
+            setEditedTitle(currentPlaylist.title);
+            setEditedDescription(currentPlaylist.description);
         }
-    };
+    }, [currentPlaylist]);
 
     const handleUpdatePlaylist = async () => {
-        try {
-            const response = await fetch(`http://localhost:3001/api/playlists/${playlistId}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    title: editedTitle,
-                    description: editedDescription,
-                }),
-            });
+        const result = await updatePlaylist(playlistId, {
+            title: editedTitle,
+            description: editedDescription,
+        });
 
-            if (response.ok) {
-                const updatedPlaylist = await response.json();
-                setPlaylist(updatedPlaylist);
-                setIsEditing(false);
-            }
-        } catch (err) {
-            setError('Failed to update playlist');
+        if (result) {
+            setIsEditing(false);
         }
     };
 
     const handleDeletePlaylist = async () => {
         if (window.confirm('Are you sure you want to delete this playlist?')) {
-            try {
-                const response = await fetch(`http://localhost:3001/api/playlists/${playlistId}`, {
-                    method: 'DELETE',
-                });
-
-                if (response.ok) {
-                    navigate('/playlists');
-                }
-            } catch (err) {
-                setError('Failed to delete playlist');
+            const result = await deletePlaylist(playlistId);
+            if (result) {
+                navigate('/playlists');
             }
         }
     };
 
     const handlePlayAll = () => {
-        if (!playlist?.songs?.length) return;
+        if (!currentPlaylist?.songs?.length) return;
         
-        setQueue(playlist.songs);
+        setQueue(currentPlaylist.songs);
         setCurrentIndex(0);
         setPlaying(true);
     };
 
     const handlePlaySong = (song, index) => {
-        setQueue(playlist.songs.slice(index));
+        setQueue(currentPlaylist.songs.slice(index));
         setCurrentIndex(0);
         setPlaying(true);
     };
@@ -103,7 +81,7 @@ export default function PlaylistDetail() {
         );
     }
 
-    if (!playlist) {
+    if (!currentPlaylist) {
         return (
             <div className="text-center text-gray-400 p-4">
                 Playlist not found
@@ -155,8 +133,8 @@ export default function PlaylistDetail() {
                 <div className="mb-8">
                     <div className="flex justify-between items-start">
                         <div>
-                            <h1 className="text-2xl font-bold text-white mb-2">{playlist.title}</h1>
-                            <p className="text-gray-400">{playlist.description}</p>
+                            <h1 className="text-2xl font-bold text-white mb-2">{currentPlaylist.title}</h1>
+                            <p className="text-gray-400">{currentPlaylist.description}</p>
                         </div>
                         <div className="flex space-x-2">
                             <button

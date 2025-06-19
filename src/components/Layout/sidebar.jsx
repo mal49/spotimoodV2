@@ -1,25 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { usePlaylist } from '../../context/PlaylistContext.jsx';
 
 export default function Sidebar() {
     const location = useLocation();
-    const [playlists, setPlaylists] = useState([]);
+    const { playlists, fetchPlaylists } = usePlaylist();
 
     useEffect(() => {
-        // Fetch playlists from backend
-        const fetchPlaylists = async () => {
-            try {
-                const response = await fetch('http://localhost:3001/api/playlists');
-                if (response.ok) {
-                    const data = await response.json();
-                    setPlaylists(data);
-                }
-            } catch (error) {
-                console.error('Error fetching playlists:', error);
-            }
-        };
         fetchPlaylists();
-    }, [location.pathname]); // Refetch when navigating
+    }, [location.pathname, fetchPlaylists]); // Refetch when navigating
 
     const NavLink = ({ icon, text, to }) => (
         <Link 
@@ -33,13 +22,7 @@ export default function Sidebar() {
         </Link>
     );
 
-    const handleCreatePlaylist = () => {
-        const newPlaylist = {
-            id: playlists.length + 1,
-            name: `New Playlist ${playlists.length + 1}`
-        };
-        setPlaylists([...playlists, newPlaylist]);
-    };
+
     
     return(
         <div className='w-64 bg-black p-4 flex flex-col space-y-4'>

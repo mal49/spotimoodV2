@@ -1,9 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { usePlaylist } from '../context/PlaylistContext.jsx';
 
 export default function PlaylistManager() {
-    const [playlists, setPlaylists] = useState([]);
-    const [isCreating, setIsCreating] = useState(false);
+    const {
+        playlists,
+        isCreating,
+        isLoading,
+        error,
+        fetchPlaylists,
+        createPlaylist,
+        deletePlaylist,
+        setCreating
+    } = usePlaylist();
+    
     const [newPlaylist, setNewPlaylist] = useState({
         title: '',
         description: ''
@@ -13,54 +23,19 @@ export default function PlaylistManager() {
 
     useEffect(() => {
         fetchPlaylists();
-    }, [location.pathname]);
-
-    const fetchPlaylists = async () => {
-        try {
-            const response = await fetch('http://localhost:3001/api/playlists');
-            if (response.ok) {
-                const data = await response.json();
-                setPlaylists(data);
-            }
-        } catch (error) {
-            console.error('Error fetching playlists:', error);
-        }
-    };
+    }, [location.pathname, fetchPlaylists]);
 
     const handleCreatePlaylist = async (e) => {
         e.preventDefault();
-        try {
-            const response = await fetch('http://localhost:3001/api/playlists', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ ...newPlaylist, songs: [] }),
-            });
-
-            if (response.ok) {
-                const createdPlaylist = await response.json();
-                setPlaylists([...playlists, createdPlaylist]);
-                setIsCreating(false);
-                setNewPlaylist({ title: '', description: '' });
-            }
-        } catch (error) {
-            console.error('Error creating playlist:', error);
+        const result = await createPlaylist(newPlaylist);
+        if (result) {
+            setCreating(false);
+            setNewPlaylist({ title: '', description: '' });
         }
     };
 
     const handleDeletePlaylist = async (playlistId) => {
-        try {
-            const response = await fetch(`http://localhost:3001/api/playlists/${playlistId}`, {
-                method: 'DELETE',
-            });
-
-            if (response.ok) {
-                setPlaylists(playlists.filter(playlist => playlist.id !== playlistId));
-            }
-        } catch (error) {
-            console.error('Error deleting playlist:', error);
-        }
+        await deletePlaylist(playlistId);
     };
 
     return (
@@ -68,12 +43,19 @@ export default function PlaylistManager() {
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bold text-white">Your Playlists</h1>
                 <button
-                    onClick={() => setIsCreating(true)}
+                    onClick={() => setCreating(true)}
                     className="bg-primary-purple text-black px-4 py-2 rounded-full hover:bg-opacity-90 transition-colors"
+                    disabled={isLoading}
                 >
                     Create New Playlist
                 </button>
             </div>
+
+            {error && (
+                <div className="bg-red-600 text-white p-4 rounded-lg mb-4">
+                    {error}
+                </div>
+            )}
 
             {isCreating && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
@@ -102,16 +84,18 @@ export default function PlaylistManager() {
                             <div className="flex justify-end space-x-2">
                                 <button
                                     type="button"
-                                    onClick={() => setIsCreating(false)}
+                                    onClick={() => setCreating(false)}
                                     className="px-4 py-2 text-gray-300 hover:text-white"
+                                    disabled={isLoading}
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type="submit"
                                     className="bg-primary-purple text-black px-4 py-2 rounded hover:bg-opacity-90"
+                                    disabled={isLoading}
                                 >
-                                    Create
+                                    {isLoading ? 'Creating...' : 'Create'}
                                 </button>
                             </div>
                         </form>
