@@ -27,8 +27,8 @@ export default function LandingPage({onGetStarted}){
                         <button onClick={onGetStarted} className='bg-[#AA60C8] text-white px-8 py-4 rounded-full font-bold text-lg shadow-lg hover:bg-[#C879E6] transition-all duration-300 transform hover:scale-105'>Get Started</button>
                         <button onClick={() => navigate('/auth')} className='bg-[#AA60C8] text-white px-8 py-4 rounded-full font-bold text-lg shadow-lg ml-3 hover:bg-[#C879E6] transition-all duration-300 transform hover:scale-105'>Sign In</button>
                     </div>
-                    <div className='flex-none bg-[#D4C3ED] w-[250px] h-[250px] rounded-lg shadow-xl flex items-center justify-center text-[#999] text-2xl font-semibold'>
-                        250x250
+                    <div>
+                        <img src="spotimood-logo.jpeg" alt="spotimood logo" width="350" height="350" className="mix-blend-multiply" />
                     </div>
                 </div>
             </div>
