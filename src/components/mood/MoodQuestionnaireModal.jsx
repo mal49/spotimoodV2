@@ -30,7 +30,7 @@ const MoodQuestionnaireModal = ({ onClose, onSubmitMood }) => {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-dark-bg p-8 rounded-lg w-full max-w-md">
-        <h2 className="text-2xl font-bold mb-6 text-center">How are you feeling today?</h2>
+        <h2 className="text-2xl font-bold mb-6 text-center text-white">How are you feeling today?</h2>
         
         {step === 1 && (
           <div className="grid grid-cols-2 gap-4">

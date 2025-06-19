@@ -11,6 +11,9 @@ import SearchResults from './components/SearchResults.jsx'
 import { PlayerProvider, usePlayer } from './context/PlayerContext';
 import PlaylistDetail from './components/PlaylistDetail.jsx'
 import AuthPage from './components/pages/authPage.jsx'
+import SubscriptionPage from './components/pages/subscriptionPage.jsx'
+import FeedbackPage from './components/pages/feedbackPage.jsx'
+import FeedbackModal from './components/UI/FeedbackModal.jsx'
 
 function SongAdder() {
   const { addToQueue } = usePlayer();
@@ -39,7 +42,7 @@ function SongAdder() {
   );
 }
 
-function MainLayout({ children }) {
+function MainLayout({ children, onOpenFeedback }) {
   return (
     <div className='flex h-screen bg-dark-bg text-text-light'>
       <Sidebar />
@@ -50,6 +53,15 @@ function MainLayout({ children }) {
         </main>
         <NowPlayingBar />
       </div>
+      
+      {/* Floating Feedback Button */}
+      <button
+        onClick={onOpenFeedback}
+        className="fixed bottom-24 right-6 bg-primary-purple text-text-light p-4 rounded-full shadow-lg hover:bg-[#C879E6] transition-all duration-200 hover:scale-110 z-40"
+        title="Send Feedback"
+      >
+        <span className="text-xl">💬</span>
+      </button>
     </div>
   );
 }
@@ -60,6 +72,7 @@ function App() {
   const [showMoodQuestionnaire, setShowMoodQuestionnaire] = useState(false);
   const [userHasStoredMood, setUsersHadStoresMood] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
 
   useEffect(() => {
     const storedMood = localStorage.getItem('userMood');
@@ -98,7 +111,7 @@ function App() {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           ) : (
-            <MainLayout>
+            <MainLayout onOpenFeedback={() => setShowFeedbackModal(true)}>
               <Routes>
                 <Route path="/" element={
                   <HomePage 
@@ -110,6 +123,8 @@ function App() {
                 <Route path="/playlists" element={<PlaylistManager />} />
                 <Route path="/playlist/:playlistId" element={<PlaylistDetail />} />
                 <Route path="/search" element={<SearchResults />} />
+                <Route path="/subscription" element={<SubscriptionPage />} />
+                <Route path="/feedback" element={<FeedbackPage />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </MainLayout>
@@ -118,6 +133,13 @@ function App() {
             <MoodQuestionnaireModal 
               onClose={() => setShowMoodQuestionnaire(false)}
               onSubmitMood={handleMoodSubmitted}
+            />
+          )}
+          
+          {showFeedbackModal && (
+            <FeedbackModal 
+              isOpen={showFeedbackModal}
+              onClose={() => setShowFeedbackModal(false)}
             />
           )}
         </div>

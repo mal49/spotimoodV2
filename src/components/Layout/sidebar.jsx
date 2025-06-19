@@ -47,7 +47,12 @@ export default function Sidebar() {
                 <NavLink icon={<span className='text-xl'>🏠</span>} text="Home" to="/" />
                 <NavLink icon={<span className='text-xl'>🔍</span>} text="Search" to="/search" />
                 <NavLink icon={<span className='text-xl'>📚</span>} text="Your Library" to="/library" />
+                <NavLink icon={<span className='text-xl'>💎</span>} text="Premium" to="/subscription" />
             </nav>
+
+            <div className='border-t border-dark-card pt-4 mt-4'>
+                <NavLink icon={<span className='text-xl'>💬</span>} text="Feedback" to="/feedback" />
+            </div>
 
             <div className='border-t border-dark-card pt-4 mt-4'>
                 <h3 className='text-sm text-text-medium mb-2 uppercase tracking-wider'>Playlists</h3>
