@@ -10,6 +10,127 @@ export default function HomePage() {
     const [moodInput, setMoodInput] = useState('');
     const [isLoadingMoodPlaylist, setIsLoadingMoodPlaylist] = useState(false);
     const [moodPlaylistError, setMoodPlaylistError] = useState(null);
+    
+    // States for album and playlist data
+    const [albumCard, setAlbumCard] = useState([]);
+    const [playlistCard, setPlaylistCard] = useState([]);
+    const [isLoadingAlbums, setIsLoadingAlbums] = useState(true);
+    const [isLoadingPlaylists, setIsLoadingPlaylists] = useState(true);
+
+    // Function to search YouTube for songs
+    const searchYouTubeMusic = async (query, maxResults = 6) => {
+        try {
+            const response = await fetch(`http://localhost:3001/api/search-music?query=${encodeURIComponent(query)}`);
+            if (response.ok) {
+                const data = await response.json();
+                return data.videos.slice(0, maxResults);
+            }
+            return [];
+        } catch (error) {
+            console.error('Error searching YouTube:', error);
+            return [];
+        }
+    };
+
+    // Load albums with real data
+    const loadAlbumsWithRealData = useCallback(async () => {
+        setIsLoadingAlbums(true);
+        try {
+            const albumQueries = [
+                'best pop songs 2024',
+                'top rock classics',
+                'greatest hits collection',
+                'chill indie music',
+                'best rap albums',
+                'electronic dance music'
+            ];
+
+            const albumsData = await Promise.all(
+                albumQueries.map(async (query, index) => {
+                    const videos = await searchYouTubeMusic(query, 1);
+                    const video = videos[0];
+                    
+                    if (video) {
+                        return {
+                            id: index + 1,
+                            title: video.title.length > 30 ? video.title.substring(0, 30) + '...' : video.title,
+                            artist: video.channelTitle,
+                            imageUrl: video.thumbnail,
+                            videoId: video.id,
+                            query: query // Store the query for potential expansion
+                        };
+                    }
+                    
+                    // Fallback placeholder if no video found
+                    return {
+                        id: index + 1,
+                        title: `Album ${index + 1}`,
+                        artist: 'Various Artists',
+                        imageUrl: 'https://placehold.co/150x150/282828/FFFFFF?text=Album',
+                        videoId: null,
+                        query: query
+                    };
+                })
+            );
+
+            setAlbumCard(albumsData);
+        } catch (error) {
+            console.error('Error loading albums:', error);
+        } finally {
+            setIsLoadingAlbums(false);
+        }
+    }, []);
+
+    // Load playlists with real data
+    const loadPlaylistsWithRealData = useCallback(async () => {
+        setIsLoadingPlaylists(true);
+        try {
+            const playlistQueries = [
+                { query: 'daily mix popular songs', title: 'Daily Mix 1', description: 'Popular tracks for you' },
+                { query: 'discover weekly new music', title: 'Discover Weekly', description: 'New songs for you' },
+                { query: 'workout music high energy', title: 'Workout Jams', description: 'High energy tracks' },
+                { query: 'relaxing instrumental music', title: 'Relaxing Instrumentals', description: 'Focus and calm' }
+            ];
+
+            const playlistsData = await Promise.all(
+                playlistQueries.map(async (playlistInfo, index) => {
+                    const videos = await searchYouTubeMusic(playlistInfo.query, 4);
+                    
+                    // Use the first video's thumbnail, or fallback
+                    const imageUrl = videos.length > 0 
+                        ? videos[0].thumbnail 
+                        : 'https://placehold.co/150x150/AA60C8/FFFFFF?text=Mix';
+
+                    return {
+                        id: index + 1,
+                        title: playlistInfo.title,
+                        description: playlistInfo.description,
+                        imageUrl: imageUrl,
+                        songs: videos.map(video => ({
+                            id: video.id,
+                            title: video.title,
+                            artist: video.channelTitle,
+                            thumbnail: video.thumbnail,
+                            videoId: video.id
+                        })),
+                        query: playlistInfo.query // Store for potential refresh
+                    };
+                })
+            );
+
+            setPlaylistCard(playlistsData);
+        } catch (error) {
+            console.error('Error loading playlists:', error);
+        } finally {
+            setIsLoadingPlaylists(false);
+        }
+    }, []);
+
+    // Load data on component mount
+    useEffect(() => {
+        loadAlbumsWithRealData();
+        loadPlaylistsWithRealData();
+    }, [loadAlbumsWithRealData, loadPlaylistsWithRealData]);
 
     const generatePlaylist = useCallback(async (moodToUse, isAutoGenerated = false) => {
         if(!moodToUse.trim()) {
@@ -78,22 +199,6 @@ export default function HomePage() {
         }
     }, [userHasStoredMood]);
 
-    const albumCard = [
-        {id: 1, title: 'Album Title One', artist: 'Artist A', imageUrl: 'https://placehold.co/150x150/282828/FFFFFF?text=Album1'},
-        { id: 2, title: 'Another Album', artist: 'Artist B', imageUrl: 'https://placehold.co/150x150/282828/FFFFFF?text=Album2' },
-        { id: 3, title: 'Greatest Hits', artist: 'Artist C', imageUrl: 'https://placehold.co/150x150/282828/FFFFFF?text=Album3' },
-        { id: 4, title: 'Chill Beats', artist: 'Artist D', imageUrl: 'https://placehold.co/150x150/282828/FFFFFF?text=Album4' },
-        { id: 5, title: 'Rock Anthems', artist: 'Artist E', imageUrl: 'https://placehold.co/150x150/282828/FFFFFF?text=Album5' },
-        { id: 6, title: 'Pop Sensations', artist: 'Artist F', imageUrl: 'https://placehold.co/150x150/282828/FFFFFF?text=Album6' }, 
-    ];
-
-    const playlistCard = [
-        { id: 1, title: 'Daily Mix 1', description: 'Artist G, Artist H', imageUrl: 'https://placehold.co/150x150/AA60C8/FFFFFF?text=Mix1' },
-        { id: 2, title: 'Discover Weekly', description: 'New songs for you', imageUrl: 'https://placehold.co/150x150/AA60C8/FFFFFF?text=Mix2' },
-        { id: 3, title: 'Workout Jams', description: 'High energy tracks', imageUrl: 'https://placehold.co/150x150/AA60C8/FFFFFF?text=Mix3' },
-        { id: 4, title: 'Relaxing Instrumentals', description: 'Focus and calm', imageUrl: 'https://placehold.co/150x150/AA60C8/FFFFFF?text=Mix4' },
-    ];
-
     return(
         <div className="min-h-screen bg-dark-bg text-text-light">
             <div className="p-6">
@@ -123,14 +228,36 @@ export default function HomePage() {
                     >
                         {isLoadingMoodPlaylist ? (
                             <>
-                                                        <Loader2 className='animate-spin h-5 w-5 text-text-light' />
+                                <Loader2 className='animate-spin h-5 w-5 text-text-light' />
                                 <span>Generating...</span>
                             </>
                         ) : 'Generate Mood Playlist'}
                     </button>
                 </div>
-                <SectionCarousel title='Recently Played' items={albumCard} type='album' />
-                <SectionCarousel title='Made for You' items={playlistCard} type='playlist' />
+                
+                {/* Recently Played Section */}
+                <div className="mb-8">
+                    {isLoadingAlbums ? (
+                        <div className="flex justify-center items-center h-32">
+                            <Loader2 className="animate-spin h-8 w-8 text-primary-purple" />
+                            <span className="ml-2 text-text-medium">Loading albums...</span>
+                        </div>
+                    ) : (
+                        <SectionCarousel title='Recently Played' items={albumCard} type='album' />
+                    )}
+                </div>
+
+                {/* Made for You Section */}
+                <div className="mb-8">
+                    {isLoadingPlaylists ? (
+                        <div className="flex justify-center items-center h-32">
+                            <Loader2 className="animate-spin h-8 w-8 text-primary-purple" />
+                            <span className="ml-2 text-text-medium">Loading playlists...</span>
+                        </div>
+                    ) : (
+                        <SectionCarousel title='Made for You' items={playlistCard} type='playlist' />
+                    )}
+                </div>
             </div>
         </div>
     );
