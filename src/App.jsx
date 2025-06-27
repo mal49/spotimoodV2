@@ -35,7 +35,7 @@ function MainLayout({ children }) {
       {/* Floating Feedback Button */}
       <button
         onClick={openFeedbackModal}
-        className="fixed bottom-24 right-6 bg-primary-purple text-text-light p-4 rounded-full shadow-lg hover:bg-[#C879E6] transition-all duration-200 hover:scale-110 z-40"
+        className="fixed bottom-32 right-6 bg-primary-purple text-text-light p-4 rounded-full shadow-lg hover:bg-[#C879E6] transition-all duration-200 hover:scale-110 z-40"
         title="Send Feedback"
       >
         <span className="text-xl">💬</span>
