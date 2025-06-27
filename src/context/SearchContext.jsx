@@ -79,13 +79,20 @@ export function SearchProvider({ children }) {
     dispatch({ type: 'SET_ERROR', payload: null });
 
     try {
-      const response = await fetch(`http://localhost:3001/api/search?q=${encodeURIComponent(searchQuery)}`);
+      const response = await fetch(`http://localhost:3001/api/search-music?query=${encodeURIComponent(searchQuery)}`);
       
       if (response.ok) {
         const data = await response.json();
-        dispatch({ type: 'SET_SEARCH_RESULTS', payload: data });
+        // Transform the response to match the expected format
+        const transformedData = {
+          videos: data.videos || [],
+          artists: [], // Server doesn't return artists, keeping empty
+          albums: [], // Server doesn't return albums, keeping empty
+        };
+        dispatch({ type: 'SET_SEARCH_RESULTS', payload: transformedData });
       } else {
-        throw new Error('Search request failed');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Search request failed');
       }
     } catch (error) {
       console.error('Error searching YouTube:', error);

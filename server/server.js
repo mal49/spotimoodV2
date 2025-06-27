@@ -1,7 +1,11 @@
 const express = require('express');
 const cors = require('cors');
 const { google } = require('googleapis');
-require('dotenv').config();
+const path = require('path');
+
+// Load environment variables
+require('dotenv').config({ path: path.join(__dirname, '.env') });
+
 // const fetch = require('node-fetch');
 
 const app = express();
@@ -388,4 +392,15 @@ app.delete('/api/playlists/:playlistId', async (req, res) => {
 app.listen(PORT, () => {
     console.log(`Backend proxy server running on http://localhost:${PORT}`);
     console.log('Ensure your react app is configured to fetch from this address.');
+    
+    // Check API key status
+    if (!GEMINI_API_KEY) {
+        console.warn('⚠️  GEMINI_API_KEY is not set in .env file');
+    }
+    if (!YOUTUBE_API_KEY) {
+        console.warn('⚠️  YOUTUBE_API_KEY is not set in .env file');
+    }
+    if (GEMINI_API_KEY && YOUTUBE_API_KEY) {
+        console.log('✅ All API keys loaded successfully');
+    }
 });
