@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Button from '../UI/Button.jsx';
+import { Loader2, Music, Lightbulb, Check, Star } from 'lucide-react';
 
 export default function FeedbackForm({ onSubmit, onClose, isModal = false }) {
     const [feedback, setFeedback] = useState({
@@ -15,12 +16,12 @@ export default function FeedbackForm({ onSubmit, onClose, isModal = false }) {
     const [submitted, setSubmitted] = useState(false);
 
     const categories = [
-        { id: 'mood-detection', label: 'Mood Detection Accuracy', icon: '🧠' },
-        { id: 'playlist-quality', label: 'Playlist Quality', icon: '🎵' },
-        { id: 'user-interface', label: 'User Interface', icon: '🎨' },
-        { id: 'performance', label: 'App Performance', icon: '⚡' },
-        { id: 'features', label: 'Feature Requests', icon: '💡' },
-        { id: 'general', label: 'General Feedback', icon: '💬' }
+        { id: 'mood-detection', label: 'Mood Detection Accuracy', icon: <div className="text-2xl">🧠</div> },
+        { id: 'playlist-quality', label: 'Playlist Quality', icon: <Music className="w-6 h-6" /> },
+        { id: 'user-interface', label: 'User Interface', icon: <div className="text-2xl">🎨</div> },
+        { id: 'performance', label: 'App Performance', icon: <div className="text-2xl">⚡</div> },
+        { id: 'features', label: 'Feature Requests', icon: <Lightbulb className="w-6 h-6" /> },
+        { id: 'general', label: 'General Feedback', icon: <div className="text-2xl">💬</div> }
     ];
 
     const handleCategoryChange = (categoryId) => {
@@ -70,7 +71,7 @@ export default function FeedbackForm({ onSubmit, onClose, isModal = false }) {
         return (
             <div className="text-center py-8">
                 <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <span className="text-2xl">✓</span>
+                    <Check className="w-8 h-8 text-white" />
                 </div>
                 <h3 className="text-2xl font-bold text-text-light mb-2">Thank You!</h3>
                 <p className="text-text-medium">
@@ -132,7 +133,7 @@ export default function FeedbackForm({ onSubmit, onClose, isModal = false }) {
                                             : 'border-dark-hover bg-dark-card text-text-medium hover:border-primary-purple/50 hover:text-text-light'
                                     }`}
                                 >
-                                    <div className="text-2xl mb-2">{category.icon}</div>
+                                    <div className="mb-2">{category.icon}</div>
                                     <div className="font-medium text-sm">{category.label}</div>
                                 </button>
                             ))}
@@ -156,7 +157,7 @@ export default function FeedbackForm({ onSubmit, onClose, isModal = false }) {
                                             : 'text-dark-hover hover:text-yellow-400'
                                     }`}
                                 >
-                                    ★
+                                    <Star className={`w-7 h-7 ${star <= feedback.rating ? 'fill-current' : ''}`} />
                                 </button>
                             ))}
                             {feedback.rating > 0 && (
@@ -266,10 +267,7 @@ export default function FeedbackForm({ onSubmit, onClose, isModal = false }) {
                         >
                             {isSubmitting ? (
                                 <div className="flex items-center space-x-2">
-                                    <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
+                                    <Loader2 className="animate-spin h-5 w-5" />
                                     <span>Submitting...</span>
                                 </div>
                             ) : 'Submit Feedback'}

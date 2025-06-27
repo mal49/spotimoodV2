@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Volume2, Volume1, Volume, VolumeX } from 'lucide-react';
 
 export default function VolumeControl({ 
   volume = 50, 
@@ -20,21 +21,13 @@ export default function VolumeControl({
 
   const getVolumeIcon = () => {
     if (volume === 0) {
-      return (
-        <path strokeLinecap="round" strokeLinejoin="round" d="M5.586 15H2v-6h3.586l5.707-5.707A1 1 0 0 1 13 4v16a1 1 0 0 1-1.707.707L5.586 15z M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
-      );
+      return <VolumeX className={`${currentSize.icon} transition-all duration-300 ${isHovered ? 'drop-shadow-sm' : ''}`} />;
     } else if (volume < 30) {
-      return (
-        <path strokeLinecap="round" strokeLinejoin="round" d="M11 5L6 9H2v6h4l5 4V5z" />
-      );
+      return <Volume className={`${currentSize.icon} transition-all duration-300 ${isHovered ? 'drop-shadow-sm' : ''}`} />;
     } else if (volume < 70) {
-      return (
-        <path strokeLinecap="round" strokeLinejoin="round" d="M11 5L6 9H2v6h4l5 4V5zM15.54 8.46a5 5 0 0 1 0 7.07" />
-      );
+      return <Volume1 className={`${currentSize.icon} transition-all duration-300 ${isHovered ? 'drop-shadow-sm' : ''}`} />;
     } else {
-      return (
-        <path strokeLinecap="round" strokeLinejoin="round" d="M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
-      );
+      return <Volume2 className={`${currentSize.icon} transition-all duration-300 ${isHovered ? 'drop-shadow-sm' : ''}`} />;
     }
   };
 
@@ -75,15 +68,7 @@ export default function VolumeControl({
         } focus:outline-none group`}
         aria-label={volume === 0 ? 'Unmute' : 'Mute'}
       >
-        <svg 
-          className={`${currentSize.icon} transition-all duration-300 ${isHovered ? 'drop-shadow-sm' : ''}`} 
-          fill="none" 
-          stroke="currentColor" 
-          strokeWidth="2" 
-          viewBox="0 0 24 24"
-        >
-          {getVolumeIcon()}
-        </svg>
+        {getVolumeIcon()}
       </button>
 
       {/* Volume Slider */}

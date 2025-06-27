@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Question from './Question';
+import { Smile, Frown, Zap, Leaf, Angry, Clock, X } from 'lucide-react';
 
 const moods = [
-  { id: 'happy', label: 'Happy', emoji: '😊', color: 'bg-yellow-400' },
-  { id: 'sad', label: 'Sad', emoji: '😢', color: 'bg-blue-400' },
-  { id: 'energetic', label: 'Energetic', emoji: '⚡', color: 'bg-red-400' },
-  { id: 'relaxed', label: 'Relaxed', emoji: '😌', color: 'bg-green-400' },
-  { id: 'angry', label: 'Angry', emoji: '😠', color: 'bg-orange-400' },
-  { id: 'nostalgic', label: 'Nostalgic', emoji: '🕰️', color: 'bg-purple-400' },
+  { id: 'happy', label: 'Happy', icon: <Smile className="w-10 h-10" />, color: 'bg-yellow-400' },
+  { id: 'sad', label: 'Sad', icon: <Frown className="w-10 h-10" />, color: 'bg-blue-400' },
+  { id: 'energetic', label: 'Energetic', icon: <Zap className="w-10 h-10" />, color: 'bg-red-400' },
+  { id: 'relaxed', label: 'Relaxed', icon: <Leaf className="w-10 h-10" />, color: 'bg-green-400' },
+  { id: 'angry', label: 'Angry', icon: <Angry className="w-10 h-10" />, color: 'bg-orange-400' },
+  { id: 'nostalgic', label: 'Nostalgic', icon: <Clock className="w-10 h-10" />, color: 'bg-purple-400' },
 ];
 
 const MoodQuestionnaireModal = ({ onClose, onSubmitMood }) => {
@@ -40,7 +41,7 @@ const MoodQuestionnaireModal = ({ onClose, onSubmitMood }) => {
                 onClick={() => handleMoodSelect(mood.id)}
                 className={`p-4 rounded-lg flex flex-col items-center justify-center transition-transform hover:scale-105 ${mood.color}`}
               >
-                <span className="text-4xl mb-2">{mood.emoji}</span>
+                <div className="mb-2 text-white">{mood.icon}</div>
                 <span className="font-medium">{mood.label}</span>
               </button>
             ))}
@@ -73,7 +74,7 @@ const MoodQuestionnaireModal = ({ onClose, onSubmitMood }) => {
           onClick={onClose}
           className="absolute top-4 right-4 text-gray-400 hover:text-white"
         >
-          ✕
+          <X className="w-5 h-5" />
         </button>
 
         <div className="mt-6 text-center">

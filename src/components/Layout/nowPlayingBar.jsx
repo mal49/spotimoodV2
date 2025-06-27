@@ -1,6 +1,17 @@
 import React from 'react';
 import { usePlayer } from '../../context/PlayerContext';
 import YouTubePlayer from '../YouTubePlayer';
+import { 
+  Music, 
+  SkipBack, 
+  Play, 
+  Pause, 
+  SkipForward, 
+  Volume2, 
+  Volume1, 
+  Volume, 
+  VolumeX 
+} from 'lucide-react';
 
 // Now Playing Bar Component
 export default function NowPlayingBar() {
@@ -53,11 +64,7 @@ export default function NowPlayingBar() {
           <div className="relative group">
             {isPlaceholder ? (
               <div className="w-12 h-12 rounded-lg flex items-center justify-center bg-gradient-to-br from-purple-600/20 to-pink-600/20 border border-white/10 shadow-lg backdrop-blur-sm">
-                <svg className="w-6 h-6 text-white/60" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 19V6l12-2v13" />
-                  <circle cx="6" cy="18" r="3" fill="currentColor" />
-                  <circle cx="18" cy="16" r="3" fill="currentColor" />
-                </svg>
+                <Music className="w-6 h-6 text-white/60" />
               </div>
             ) : (
               <div className="relative">
@@ -95,9 +102,7 @@ export default function NowPlayingBar() {
               aria-label="Previous"
               disabled={isPlaceholder}
             >
-              <svg className="w-5 h-5 transition-transform group-hover:-translate-x-0.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-              </svg>
+              <SkipBack className="w-5 h-5 transition-transform group-hover:-translate-x-0.5" />
             </button>
 
             <button
@@ -117,14 +122,9 @@ export default function NowPlayingBar() {
               
               <div className="relative">
                 {isPlaying ? (
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <rect x="6" y="4" width="4" height="16" rx="1" fill="currentColor" />
-                    <rect x="14" y="4" width="4" height="16" rx="1" fill="currentColor" />
-                  </svg>
+                  <Pause className="w-6 h-6" />
                 ) : (
-                  <svg className="w-6 h-6 translate-x-0.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <polygon points="5,3 19,12 5,21 5,3" fill="currentColor" />
-                  </svg>
+                  <Play className="w-6 h-6 translate-x-0.5" />
                 )}
               </div>
             </button>
@@ -139,9 +139,7 @@ export default function NowPlayingBar() {
               aria-label="Next"
               disabled={isPlaceholder}
             >
-              <svg className="w-5 h-5 transition-transform group-hover:translate-x-0.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-              </svg>
+              <SkipForward className="w-5 h-5 transition-transform group-hover:translate-x-0.5" />
             </button>
           </div>
 
@@ -186,17 +184,15 @@ export default function NowPlayingBar() {
               className="transition-all duration-300 hover:scale-110 active:scale-95 text-gray-300 hover:text-white focus:outline-none"
               aria-label={volume === 0 ? 'Unmute' : 'Mute'}
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                {volume === 0 ? (
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5.586 15H2v-6h3.586l5.707-5.707A1 1 0 0 1 13 4v16a1 1 0 0 1-1.707.707L5.586 15z M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
-                ) : volume < 30 ? (
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M11 5L6 9H2v6h4l5 4V5z" />
-                ) : volume < 70 ? (
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M11 5L6 9H2v6h4l5 4V5zM15.54 8.46a5 5 0 0 1 0 7.07" />
-                ) : (
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
-                )}
-              </svg>
+              {volume === 0 ? (
+                <VolumeX className="w-4 h-4" />
+              ) : volume < 30 ? (
+                <Volume className="w-4 h-4" />
+              ) : volume < 70 ? (
+                <Volume1 className="w-4 h-4" />
+              ) : (
+                <Volume2 className="w-4 h-4" />
+              )}
             </button>
             
             <div className="relative group flex-1">

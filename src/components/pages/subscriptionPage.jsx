@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Button from '../UI/Button.jsx';
+import { Music, Brain, Headphones, Check } from 'lucide-react';
 
 export default function SubscriptionPage() {
     const [selectedPlan, setSelectedPlan] = useState(null);
@@ -86,21 +87,21 @@ export default function SubscriptionPage() {
                 <div className="grid md:grid-cols-3 gap-8 mb-16">
                     <div className="text-center">
                         <div className="w-16 h-16 bg-primary-purple rounded-full flex items-center justify-center mx-auto mb-4">
-                            <span className="text-2xl">🎵</span>
+                            <Music className="w-8 h-8 text-white" />
                         </div>
                         <h3 className="text-xl font-bold mb-2">Mood-Based Discovery</h3>
                         <p className="text-text-medium">AI analyzes your mood to create perfect playlists</p>
                     </div>
                     <div className="text-center">
                         <div className="w-16 h-16 bg-primary-purple rounded-full flex items-center justify-center mx-auto mb-4">
-                            <span className="text-2xl">🧠</span>
+                            <Brain className="w-8 h-8 text-white" />
                         </div>
                         <h3 className="text-xl font-bold mb-2">Smart Analytics</h3>
                         <p className="text-text-medium">Track your mood patterns and music preferences</p>
                     </div>
                     <div className="text-center">
                         <div className="w-16 h-16 bg-primary-purple rounded-full flex items-center justify-center mx-auto mb-4">
-                            <span className="text-2xl">🎧</span>
+                            <Headphones className="w-8 h-8 text-white" />
                         </div>
                         <h3 className="text-xl font-bold mb-2">Premium Quality</h3>
                         <p className="text-text-medium">High-quality audio for the best listening experience</p>
@@ -138,7 +139,7 @@ export default function SubscriptionPage() {
                             <ul className="space-y-4 mb-8">
                                 {plan.features.map((feature, index) => (
                                     <li key={index} className="flex items-center space-x-3">
-                                        <span className="text-primary-purple">✓</span>
+                                        <Check className="w-4 h-4 text-primary-purple" />
                                         <span className="text-sm">{feature}</span>
                                     </li>
                                 ))}

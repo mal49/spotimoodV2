@@ -1,6 +1,7 @@
 import React, {useState} from 'react';
 import SongRow from '../songRow.jsx';
 import { usePlayer } from '../../context/PlayerContext';
+import { Play, Heart, MoreHorizontal, Shuffle } from 'lucide-react';
 
 export default function PlaylistPage({playlistData, onBack}){
     const defaultPlaylistTitle = "MY FAVORITE HITS";
@@ -127,24 +128,18 @@ export default function PlaylistPage({playlistData, onBack}){
                     onClick={handlePlayAll}
                     className="bg-primary-purple text-black px-6 py-3 rounded-full font-bold text-lg flex items-center space-x-2 hover:scale-105 transition-transform"
                 >
-                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd"/>
-                    </svg>
+                    <Play className="w-6 h-6" fill="currentColor" />
                     <span>Play All</span>
                 </button>
                 <button className='bg-primary-purple text-black px-6 py-3 rounded-full font-bold text-lg flex items-center space-x-2 hover:scale-105 transition-colors'>
-                        <span className='text-xl'>🔀</span>
+                        <Shuffle className='w-6 h-6' />
                         <span>Shuffle</span>
                 </button>
                 <button className='text-text-medium hover:text-primary-purple transition-colors'>
-                        <svg className='w-8 h-8' fill='currentColor' viewBox='0 0 20 20'>
-                            <path fillRule='evenodd' d='M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z' clipRule='evenodd'></path>
-                        </svg>
+                        <Heart className='w-8 h-8' />
                 </button>
                 <button className='text-text-medium hover:text-text-light transition-colors'>
-                        <svg className='w-8 h-8' fill='currentColor' viewBox='0 0 20 20'>
-                            <path d='M10 6a2 2 0 110-4 2 2 0 010 4zm0 2a2 2 0 110 4 2 2 0 010-4zm0 6a2 2 0 110 4 2 2 0 010-4z'></path>
-                        </svg>
+                        <MoreHorizontal className='w-8 h-8' />
                 </button>
             </div>
 

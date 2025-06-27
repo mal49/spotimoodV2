@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { ArrowRight, LogIn, Music, Stars, Sparkles } from 'lucide-react';
 
 export default function LandingPage({onGetStarted}){
     const navigate = useNavigate();
@@ -47,7 +48,10 @@ export default function LandingPage({onGetStarted}){
                     <div className='space-y-8 text-center lg:text-left'>
                         <div className='space-y-6'>
                             <div className='inline-block px-4 py-2 bg-gradient-to-r from-purple-100 to-pink-100 rounded-full'>
-                                <span className='text-purple-700 font-medium text-sm'>🎵 Discover Your Musical Mood</span>
+                                <span className='text-purple-700 font-medium text-sm flex items-center gap-2'>
+                            <Music className='w-4 h-4' />
+                            Discover Your Musical Mood
+                        </span>
                             </div>
                             
                             <h1 className='text-5xl lg:text-7xl font-bold leading-tight'>
@@ -69,7 +73,9 @@ export default function LandingPage({onGetStarted}){
                                 <p className='text-sm font-medium text-gray-700'>Mood Analysis</p>
                             </div>
                             <div className='p-4 bg-white/60 backdrop-blur-sm rounded-xl border border-purple-100'>
-                                <div className='text-pink-500 text-2xl mb-2'>🎵</div>
+                                <div className='text-pink-500 text-2xl mb-2'>
+                                    <Music className='w-8 h-8' />
+                                </div>
                                 <p className='text-sm font-medium text-gray-700'>Smart Playlists</p>
                             </div>
                             <div className='p-4 bg-white/60 backdrop-blur-sm rounded-xl border border-purple-100'>
@@ -86,9 +92,7 @@ export default function LandingPage({onGetStarted}){
                             >
                                 <span className='flex items-center justify-center space-x-2'>
                                     <span>Get Started</span>
-                                    <svg className='w-5 h-5 transform group-hover:translate-x-1 transition-transform duration-300' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
-                                        <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M13 7l5 5m0 0l-5 5m5-5H6' />
-                                    </svg>
+                                    <ArrowRight className='w-5 h-5 transform group-hover:translate-x-1 transition-transform duration-300' />
                                 </span>
                             </button>
                             
@@ -98,9 +102,7 @@ export default function LandingPage({onGetStarted}){
                             >
                                 <span className='flex items-center justify-center space-x-2'>
                                     <span>Sign In</span>
-                                    <svg className='w-5 h-5 transform group-hover:rotate-12 transition-transform duration-300' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
-                                        <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1' />
-                                    </svg>
+                                    <LogIn className='w-5 h-5 transform group-hover:rotate-12 transition-transform duration-300' />
                                 </span>
                             </button>
                         </div>
@@ -122,10 +124,10 @@ export default function LandingPage({onGetStarted}){
                                 
                                 {/* Floating elements */}
                                 <div className='absolute -top-4 -right-4 w-12 h-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center text-white font-bold shadow-lg animate-bounce'>
-                                    🎵
+                                    <Music className='w-6 h-6 text-purple-300' />
                                 </div>
                                 <div className='absolute -bottom-4 -left-4 w-12 h-12 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold shadow-lg animate-pulse'>
-                                    💫
+                                    <Sparkles className='w-6 h-6 text-yellow-300' />
                                 </div>
                             </div>
                         </div>
