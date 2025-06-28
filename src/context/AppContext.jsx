@@ -61,6 +61,9 @@ export function AppProvider({ children }) {
     
     if (isAuthenticated) {
       dispatch({ type: 'SET_SHOW_MAIN_APP', payload: true });
+    } else {
+      // When user signs out, reset to landing page
+      dispatch({ type: 'SET_SHOW_MAIN_APP', payload: false });
     }
   }, [isAuthenticated]);
 
@@ -108,6 +111,10 @@ export function AppProvider({ children }) {
     dispatch({ type: 'SET_GENERATED_PLAYLIST', payload: playlist });
   };
 
+  const resetAppState = () => {
+    dispatch({ type: 'RESET_APP_STATE' });
+  };
+
   const value = {
     ...state,
     handleGetStarted,
@@ -117,6 +124,7 @@ export function AppProvider({ children }) {
     closeFeedbackModal,
     closeMoodQuestionnaire,
     setGeneratedPlaylist,
+    resetAppState,
   };
 
   return (

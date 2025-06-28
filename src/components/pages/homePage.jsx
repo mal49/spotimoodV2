@@ -2,10 +2,12 @@ import React, {useState, useEffect, useCallback} from 'react';
 import { useNavigate } from 'react-router-dom';
 import SectionCarousel from '../UI/SectionCarousel.jsx';
 import { useApp } from '../../context/AppContext.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
 import { Loader2, Sparkles } from 'lucide-react';
 
 export default function HomePage() {
     const { setGeneratedPlaylist, userHasStoredMood } = useApp();
+    const { user, profile, isAuthenticated, loading: authLoading } = useAuth();
     const navigate = useNavigate();
     const [moodInput, setMoodInput] = useState('');
     const [isLoadingMoodPlaylist, setIsLoadingMoodPlaylist] = useState(false);
@@ -16,6 +18,34 @@ export default function HomePage() {
     const [playlistCard, setPlaylistCard] = useState([]);
     const [isLoadingAlbums, setIsLoadingAlbums] = useState(true);
     const [isLoadingPlaylists, setIsLoadingPlaylists] = useState(true);
+
+    // Helper function to get personalized greeting
+    const getPersonalizedGreeting = useCallback(() => {
+        const hour = new Date().getHours();
+        let timeGreeting;
+        
+        if (hour < 12) {
+            timeGreeting = 'Good morning';
+        } else if (hour < 17) {
+            timeGreeting = 'Good afternoon';
+        } else {
+            timeGreeting = 'Good evening';
+        }
+
+        if (!isAuthenticated) {
+            return `${timeGreeting}!`;
+        }
+
+        // Get user's display name from profile, metadata, or email
+        const displayName = profile?.display_name || 
+                           profile?.full_name || 
+                           user?.user_metadata?.display_name || 
+                           user?.user_metadata?.full_name ||
+                           user?.email?.split('@')[0] || 
+                           'there';
+
+        return `${timeGreeting}, ${displayName}!`;
+    }, [isAuthenticated, user, profile]);
 
     // Function to search YouTube for songs
     const searchYouTubeMusic = async (query, maxResults = 6) => {
@@ -138,6 +168,9 @@ export default function HomePage() {
             return;
         }
 
+        // Note: Allow playlist generation for both authenticated and guest users
+        // Authenticated users get additional benefits like saving playlists
+
         setIsLoadingMoodPlaylist(true);
         setMoodPlaylistError(null);
         setGeneratedPlaylist(null);
@@ -188,7 +221,7 @@ export default function HomePage() {
         } finally {
             setIsLoadingMoodPlaylist(false);
         }
-    }, [setGeneratedPlaylist, navigate]);
+    }, [setGeneratedPlaylist, navigate, isAuthenticated]);
 
     useEffect(() => {
         if(userHasStoredMood) {
@@ -199,18 +232,40 @@ export default function HomePage() {
         }
     }, [userHasStoredMood]);
 
+    // Show loading state while auth is being determined
+    if (authLoading) {
+        return (
+            <div className="min-h-screen bg-dark-bg text-text-light flex items-center justify-center">
+                <div className="text-center">
+                    <Loader2 className="animate-spin h-12 w-12 text-primary-purple mx-auto mb-4" />
+                    <p className="text-text-medium">Loading your personalized experience...</p>
+                </div>
+            </div>
+        );
+    }
+
     return(
         <div className="min-h-screen bg-dark-bg text-text-light">
             <div className="p-6">
-                <h2 className='text-3xl font-bold mb-6'>Good afternoon, User!</h2>
+                <h2 className='text-3xl font-bold mb-6'>{getPersonalizedGreeting()}</h2>
+
+                {/* Authentication status indicator (optional) */}
+                {isAuthenticated && (
+                    <div className="mb-4 text-sm text-text-medium">
+                        Welcome back! Your playlists and mood history are synced across all your devices.
+                    </div>
+                )}
 
                 {/* mood-based playlist section (Manual Input) */}
                 <div className='mb-8 bg-dark-card p-6 rounded-lg shadow-lg'>
                     <h3 className='text-2xl font-bold mb-4 flex items-center gap-2'>
                         <Sparkles className='w-6 h-6 text-purple-400' />
-                        Create a Mood Playlist (Manual)
+                        Create a Mood Playlist {!isAuthenticated && '(Guest Mode)'}
                     </h3>
-                    <p className='text-text-medium mb-4'>Tell us how you're feeling, and Spotimood will suggest a playlist just for you.</p>
+                    <p className='text-text-medium mb-4'>
+                        Tell us how you're feeling, and Spotimood will suggest a playlist just for you.
+                        {!isAuthenticated && ' Sign in to save and manage your playlists!'}
+                    </p>
                     <textarea 
                     className='w-full bg-dark-bg text-text-light rounded-md p-3 mb-4 focus:outline-none focus:ring-2 focus:ring-primary-purple' 
                     rows='3' 
@@ -220,6 +275,16 @@ export default function HomePage() {
                     </textarea>
                     {moodPlaylistError && (
                         <p className='text-red-400 text-sm mb-4'>{moodPlaylistError}</p>
+                    )}
+                    {!isAuthenticated && (
+                        <p className='text-yellow-400 text-sm mb-4 flex items-center gap-2'>
+                            💡 Tip: <button 
+                                onClick={() => navigate('/auth')} 
+                                className="underline hover:text-primary-purple transition-colors"
+                            >
+                                Sign in
+                            </button> to save your mood playlists and get personalized recommendations!
+                        </p>
                     )}
                     <button
                     onClick={() => generatePlaylist(moodInput, false)}
@@ -255,7 +320,11 @@ export default function HomePage() {
                             <span className="ml-2 text-text-medium">Loading playlists...</span>
                         </div>
                     ) : (
-                        <SectionCarousel title='Made for You' items={playlistCard} type='playlist' />
+                        <SectionCarousel 
+                            title={isAuthenticated ? 'Made for You' : 'Discover Music'} 
+                            items={playlistCard} 
+                            type='playlist' 
+                        />
                     )}
                 </div>
             </div>

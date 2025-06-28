@@ -1,11 +1,14 @@
 import React, { useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { usePlaylist } from '../../context/PlaylistContext.jsx';
-import { Home, Search, Library, Crown, MessageCircle, Plus } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext.jsx';
+import { Home, Search, Library, Crown, MessageCircle, Plus, User, LogOut } from 'lucide-react';
 
 export default function Sidebar() {
     const location = useLocation();
+    const navigate = useNavigate();
     const { playlists, fetchPlaylists } = usePlaylist();
+    const { user, profile, isAuthenticated, signOut } = useAuth();
 
     useEffect(() => {
         fetchPlaylists();
@@ -23,10 +26,31 @@ export default function Sidebar() {
         </Link>
     );
 
+    // Get user's display name
+    const getUserDisplayName = () => {
+        if (!isAuthenticated) return null;
+        
+        return profile?.display_name || 
+               profile?.full_name || 
+               user?.user_metadata?.display_name || 
+               user?.user_metadata?.full_name ||
+               user?.email?.split('@')[0] || 
+               'User';
+    };
+
+    const handleSignOut = async () => {
+        try {
+            await signOut();
+            // Navigate to root, AppContext will handle showing landing page
+            navigate('/', { replace: true });
+        } catch (error) {
+            console.error('Error signing out:', error);
+        }
+    };
 
     
     return(
-        <div className='w-64 bg-black p-4 flex flex-col space-y-4'>
+        <div className='w-64 bg-black p-4 flex flex-col space-y-4 h-full'>
             <nav className='space-y-2'>
                 <NavLink icon={<Home className='w-6 h-6' />} text="Home" to="/" />
                 <NavLink icon={<Search className='w-6 h-6' />} text="Search" to="/search" />
@@ -38,7 +62,7 @@ export default function Sidebar() {
                 <NavLink icon={<MessageCircle className='w-6 h-6' />} text="Feedback" to="/feedback" />
             </div>
 
-            <div className='border-t border-dark-card pt-4 mt-4'>
+            <div className='border-t border-dark-card pt-4 mt-4 flex-1'>
                 <h3 className='text-sm text-text-medium mb-2 uppercase tracking-wider'>Playlists</h3>
                 <Link 
                     to="/playlists"
@@ -61,6 +85,37 @@ export default function Sidebar() {
                     ))}
                 </ul>
             </div>
+
+            {/* User Section - Only show when authenticated */}
+            {isAuthenticated && (
+                <div className='border-t border-dark-card pt-4 mt-4'>
+                    <div className='bg-dark-card rounded-lg p-3'>
+                        {/* User Info */}
+                        <div className='flex items-center space-x-3 mb-3'>
+                            <div className='w-8 h-8 bg-primary-purple rounded-full flex items-center justify-center'>
+                                <User className='w-4 h-4 text-white' />
+                            </div>
+                            <div className='flex-1 min-w-0'>
+                                <p className='text-text-light font-medium text-sm truncate'>
+                                    {getUserDisplayName()}
+                                </p>
+                                <p className='text-text-medium text-xs truncate'>
+                                    {user?.email}
+                                </p>
+                            </div>
+                        </div>
+                        
+                        {/* Sign Out Button */}
+                        <button
+                            onClick={handleSignOut}
+                            className='w-full flex items-center space-x-2 text-red-400 hover:text-red-300 p-2 rounded-md hover:bg-dark-hover transition-colors text-sm'
+                        >
+                            <LogOut className='w-4 h-4' />
+                            <span>Sign Out</span>
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
