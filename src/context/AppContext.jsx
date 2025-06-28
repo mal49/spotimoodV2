@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import { useAuth } from './AuthContext';
 
 const AppContext = createContext();
 
@@ -52,6 +53,16 @@ function appReducer(state, action) {
 
 export function AppProvider({ children }) {
   const [state, dispatch] = useReducer(appReducer, initialState);
+  const { isAuthenticated, user } = useAuth();
+
+  // Update authentication state based on Supabase Auth
+  useEffect(() => {
+    dispatch({ type: 'SET_AUTHENTICATED', payload: isAuthenticated });
+    
+    if (isAuthenticated) {
+      dispatch({ type: 'SET_SHOW_MAIN_APP', payload: true });
+    }
+  }, [isAuthenticated]);
 
   // Check for stored mood on initialization
   useEffect(() => {
@@ -73,7 +84,8 @@ export function AppProvider({ children }) {
   };
 
   const handleAuthSuccess = () => {
-    dispatch({ type: 'SET_AUTHENTICATED', payload: true });
+    // Authentication state is now handled by AuthContext useEffect above
+    // Just show the main app and mood questionnaire if needed
     dispatch({ type: 'SET_SHOW_MAIN_APP', payload: true });
     if (!state.userHasStoredMood) {
       dispatch({ type: 'SET_SHOW_MOOD_QUESTIONNAIRE', payload: true });

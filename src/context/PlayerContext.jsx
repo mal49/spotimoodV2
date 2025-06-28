@@ -81,28 +81,60 @@ function playerReducer(state, action) {
 export function PlayerProvider({ children }) {
   const [state, dispatch] = useReducer(playerReducer, initialState);
   const playerRef = useRef(null);
+  const isPlayerReadyRef = useRef(false);
+
+  // Safe player function wrapper
+  const safePlayerCall = (method, ...args) => {
+    try {
+      if (playerRef.current && typeof playerRef.current[method] === 'function' && isPlayerReadyRef.current) {
+        return playerRef.current[method](...args);
+      }
+    } catch (error) {
+      console.warn(`Error calling player method ${method}:`, error);
+    }
+    return null;
+  };
 
   const handlePlayerReady = (player) => {
     playerRef.current = player;
-    player.setVolume(state.volume);
+    isPlayerReadyRef.current = true;
+    safePlayerCall('setVolume', state.volume);
   };
 
   const handlePlayerStateChange = (event) => {
+    if (!event || typeof event.data !== 'number') return;
+
     // YouTube player states:
     // -1 (unstarted), 0 (ended), 1 (playing), 2 (paused), 3 (buffering), 5 (video cued)
-    if (event.data === 0) { // Video ended
+    if (event.data === 1) { // Playing
+      dispatch({ type: 'SET_PLAYING', payload: true });
+    } else if (event.data === 2) { // Paused
+      dispatch({ type: 'SET_PLAYING', payload: false });
+    } else if (event.data === 0) { // Video ended
+      dispatch({ type: 'SET_PLAYING', payload: false });
+      
+      // Handle auto-play next
       if (state.repeatMode === 'one') {
-        playerRef.current?.seekTo(0);
-        playerRef.current?.playVideo();
+        safePlayerCall('seekTo', 0);
+        safePlayerCall('playVideo');
+        dispatch({ type: 'SET_PLAYING', payload: true });
       } else if (state.repeatMode === 'all' || state.currentIndex < state.queue.length - 1) {
-        playNext();
-      } else {
-        dispatch({ type: 'SET_PLAYING', payload: false });
+        setTimeout(() => playNext(), 100); // Small delay to prevent race conditions
       }
+    } else if (event.data === 5) { // Video cued
+      // Update duration when video is cued
+      setTimeout(() => {
+        const duration = safePlayerCall('getDuration');
+        if (duration && duration > 0) {
+          dispatch({ type: 'SET_DURATION', payload: duration });
+        }
+      }, 100);
     }
   };
 
   const playNext = () => {
+    if (!state.queue.length) return;
+    
     if (state.currentIndex < state.queue.length - 1) {
       dispatch({ type: 'SET_CURRENT_INDEX', payload: state.currentIndex + 1 });
     } else if (state.repeatMode === 'all') {
@@ -111,6 +143,8 @@ export function PlayerProvider({ children }) {
   };
 
   const playPrevious = () => {
+    if (!state.queue.length) return;
+    
     if (state.currentIndex > 0) {
       dispatch({ type: 'SET_CURRENT_INDEX', payload: state.currentIndex - 1 });
     } else if (state.repeatMode === 'all') {
@@ -119,48 +153,66 @@ export function PlayerProvider({ children }) {
   };
 
   const togglePlay = () => {
+    if (!state.queue.length || state.currentIndex === -1) return;
+    
     if (state.isPlaying) {
-      playerRef.current?.pauseVideo();
+      safePlayerCall('pauseVideo');
+      dispatch({ type: 'SET_PLAYING', payload: false });
     } else {
-      playerRef.current?.playVideo();
+      safePlayerCall('playVideo');
+      dispatch({ type: 'SET_PLAYING', payload: true });
     }
-    dispatch({ type: 'SET_PLAYING', payload: !state.isPlaying });
   };
 
   const setVolume = (volume) => {
-    playerRef.current?.setVolume(volume);
+    safePlayerCall('setVolume', volume);
     dispatch({ type: 'SET_VOLUME', payload: volume });
   };
 
   const seekTo = (time) => {
-    playerRef.current?.seekTo(time);
+    safePlayerCall('seekTo', time);
+    dispatch({ type: 'SET_CURRENT_TIME', payload: time });
   };
 
+  // Update current time periodically
+  useEffect(() => {
+    if (!state.isPlaying) return;
+
+    const interval = setInterval(() => {
+      const currentTime = safePlayerCall('getCurrentTime');
+      if (currentTime !== null && currentTime >= 0) {
+        dispatch({ type: 'SET_CURRENT_TIME', payload: currentTime });
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [state.isPlaying]);
+
+  // Handle song changes with better error handling
   useEffect(() => {
     if (
       state.currentIndex >= 0 &&
       state.queue[state.currentIndex] &&
-      playerRef.current &&
-      typeof playerRef.current.loadVideoById === 'function'
+      isPlayerReadyRef.current
     ) {
       const currentSong = state.queue[state.currentIndex];
-      playerRef.current.loadVideoById(currentSong.id);
-      if (state.isPlaying) {
-        playerRef.current.playVideo();
+      
+      // Reset current time when switching songs
+      dispatch({ type: 'SET_CURRENT_TIME', payload: 0 });
+      
+      // Load the new video
+      if (currentSong.id) {
+        safePlayerCall('loadVideoById', currentSong.id);
+        
+        // If we were playing, continue playing the new song
+        if (state.isPlaying) {
+          setTimeout(() => {
+            safePlayerCall('playVideo');
+          }, 100);
+        }
       }
     }
   }, [state.currentIndex, state.queue]);
-
-  // Sync isPlaying state with the YouTube player
-  useEffect(() => {
-    if (playerRef.current) {
-      if (state.isPlaying) {
-        playerRef.current.playVideo();
-      } else {
-        playerRef.current.pauseVideo();
-      }
-    }
-  }, [state.isPlaying]);
 
   const value = {
     queue: state.queue,

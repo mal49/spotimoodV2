@@ -177,7 +177,7 @@ export default function PlaylistDetail() {
                     <div>ALBUM</div>
                     <div className='text-right'>DURATION</div>
                 </div>
-                {playlist.songs?.map((song, index) => (
+                {currentPlaylist.songs?.map((song, index) => (
                     <div
                         key={song.id}
                         onClick={() => handlePlaySong(song, index)}

@@ -10,10 +10,14 @@ import PlaylistManager from './components/PlaylistManager.jsx'
 import SearchResults from './components/SearchResults.jsx'
 import { PlayerProvider } from './context/PlayerContext';
 import { AppProvider, useApp } from './context/AppContext';
+import { AuthProvider } from './context/AuthContext';
 import { PlaylistProvider } from './context/PlaylistContext';
+import { MoodProvider } from './context/MoodContext';
+import { FeedbackProvider } from './context/FeedbackContext';
 import { SearchProvider } from './context/SearchContext';
 import PlaylistDetail from './components/PlaylistDetail.jsx'
 import AuthPage from './components/pages/authPage.jsx'
+import AuthCallback from './components/pages/authCallback.jsx'
 import SubscriptionPage from './components/pages/subscriptionPage.jsx'
 import FeedbackPage from './components/pages/feedbackPage.jsx'
 import FeedbackModal from './components/UI/FeedbackModal.jsx'
@@ -63,6 +67,7 @@ function AppContent() {
           <Routes>
             <Route path="/" element={<LandingPage onGetStarted={handleGetStarted}/>} />
             <Route path="/auth" element={<AuthPage onAuthSuccess={handleAuthSuccess} />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         ) : (
@@ -98,15 +103,21 @@ function AppContent() {
 
 function App() {
   return (
-    <AppProvider>
-      <PlayerProvider>
-        <PlaylistProvider>
-          <SearchProvider>
-            <AppContent />
-          </SearchProvider>
-        </PlaylistProvider>
-      </PlayerProvider>
-    </AppProvider>
+    <AuthProvider>
+      <AppProvider>
+        <MoodProvider>
+          <FeedbackProvider>
+            <PlayerProvider>
+              <PlaylistProvider>
+                <SearchProvider>
+                  <AppContent />
+                </SearchProvider>
+              </PlaylistProvider>
+            </PlayerProvider>
+          </FeedbackProvider>
+        </MoodProvider>
+      </AppProvider>
+    </AuthProvider>
   );
 }
 

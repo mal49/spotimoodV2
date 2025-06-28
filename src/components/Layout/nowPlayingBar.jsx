@@ -52,6 +52,7 @@ export default function NowPlayingBar() {
       
       {currentSong && (
         <YouTubePlayer
+          key={currentSong.id}
           videoId={currentSong.id}
           onReady={handlePlayerReady}
           onStateChange={handlePlayerStateChange}
