@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 export default function Header() {
     const { user, profile, isAuthenticated, signOut } = useAuth();
     const [showUserMenu, setShowUserMenu] = useState(false);
+    const [isSigningOut, setIsSigningOut] = useState(false);
     const menuRef = useRef(null);
     const navigate = useNavigate();
 
@@ -37,13 +38,32 @@ export default function Header() {
     }, []);
 
     const handleSignOut = async () => {
+        console.log('Sign out button clicked');
+        setIsSigningOut(true);
+        
         try {
-            await signOut();
             setShowUserMenu(false);
-            // Navigate to root, AppContext will handle showing landing page
+            console.log('Calling signOut function...');
+            const result = await signOut();
+            
+            console.log('Sign out result:', result);
+            
+            if (result?.error) {
+                console.error('Sign out error:', result.error);
+                // Still navigate even if there's an error
+            } else {
+                console.log('Sign out successful');
+            }
+            
+            // Navigate to landing page - AppContext will handle the state change
+            console.log('Navigating to landing page...');
             navigate('/', { replace: true });
         } catch (error) {
-            console.error('Error signing out:', error);
+            console.error('Error during sign out process:', error);
+            // Navigate anyway to ensure user gets signed out visually
+            navigate('/', { replace: true });
+        } finally {
+            setIsSigningOut(false);
         }
     };
 
@@ -105,10 +125,11 @@ export default function Header() {
                                     
                                     <button
                                         onClick={handleSignOut}
-                                        className="w-full flex items-center space-x-3 px-4 py-2 text-red-400 hover:text-red-300 hover:bg-dark-hover transition-colors"
+                                        disabled={isSigningOut}
+                                        className="w-full flex items-center space-x-3 px-4 py-2 text-red-400 hover:text-red-300 hover:bg-dark-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
-                                        <LogOut className="w-4 h-4" />
-                                        <span>Sign Out</span>
+                                        <LogOut className={`w-4 h-4 ${isSigningOut ? 'animate-spin' : ''}`} />
+                                        <span>{isSigningOut ? 'Signing Out...' : 'Sign Out'}</span>
                                     </button>
                                 </div>
                             </div>

@@ -98,11 +98,25 @@ export function AuthProvider({ children }) {
   };
 
   const signOut = async () => {
+    console.log('AuthContext: signOut called');
     try {
+      console.log('AuthContext: Calling supabase.auth.signOut()');
       const { error } = await supabase.auth.signOut();
+      
+      console.log('AuthContext: Supabase signOut response:', { error });
+      
       if (error) throw error;
+      
+      // Clear local state immediately
+      console.log('AuthContext: Clearing local state');
+      setUser(null);
+      setProfile(null);
+      
+      console.log('AuthContext: Sign out completed successfully');
+      return { error: null };
     } catch (error) {
-      console.error('Error signing out:', error);
+      console.error('AuthContext: Error signing out:', error);
+      return { error };
     }
   };
 

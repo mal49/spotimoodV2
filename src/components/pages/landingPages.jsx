@@ -7,6 +7,7 @@ export default function LandingPage({onGetStarted}){
     const navigate = useNavigate();
     const { user, profile, isAuthenticated, loading: authLoading, signOut } = useAuth();
     const [showUserMenu, setShowUserMenu] = useState(false);
+    const [isSigningOut, setIsSigningOut] = useState(false);
     const menuRef = useRef(null);
 
     // Get user's display name for personalized greeting
@@ -37,13 +38,27 @@ export default function LandingPage({onGetStarted}){
     };
 
     const handleSignOut = async () => {
+        console.log('Landing page sign out clicked');
+        setIsSigningOut(true);
+        
         try {
-            await signOut();
             setShowUserMenu(false);
-            // Stay on landing page after sign out - no navigation needed
-            // AppContext will automatically handle the auth state change
+            console.log('Calling signOut function from landing page...');
+            const result = await signOut();
+            
+            console.log('Landing page sign out result:', result);
+            
+            if (result?.error) {
+                console.error('Sign out error:', result.error);
+            } else {
+                console.log('Landing page sign out successful');
+            }
+            
+            // Stay on landing page after sign out - AppContext will handle the state change
         } catch (error) {
-            console.error('Error signing out:', error);
+            console.error('Error signing out from landing page:', error);
+        } finally {
+            setIsSigningOut(false);
         }
     };
 
@@ -150,10 +165,11 @@ export default function LandingPage({onGetStarted}){
                                         
                                         <button
                                             onClick={handleSignOut}
-                                            className="w-full flex items-center space-x-3 px-4 py-2 text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors text-sm"
+                                            disabled={isSigningOut}
+                                            className="w-full flex items-center space-x-3 px-4 py-2 text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
-                                            <LogOut className="w-4 h-4" />
-                                            <span>Sign Out</span>
+                                            <LogOut className={`w-4 h-4 ${isSigningOut ? 'animate-spin' : ''}`} />
+                                            <span>{isSigningOut ? 'Signing Out...' : 'Sign Out'}</span>
                                         </button>
                                     </div>
                                 </div>
