@@ -64,8 +64,10 @@ CREATE TABLE feedback (
   user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
   email TEXT,
   feedback_type TEXT NOT NULL CHECK (feedback_type IN ('bug', 'feature', 'general')),
+  category TEXT, -- Additional detailed category like 'mood-detection', 'playlist-quality', etc.
   message TEXT NOT NULL,
   rating INTEGER CHECK (rating >= 1 AND rating <= 5),
+  metadata JSONB, -- For storing additional data like would_recommend, improvement_suggestions separately
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 

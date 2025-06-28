@@ -14,14 +14,22 @@ export function FeedbackProvider({ children }) {
     try {
       const { data: { user } } = await supabase.auth.getUser();
 
+      // Prepare metadata for additional fields
+      const metadata = {};
+      if (feedbackData.category) metadata.category = feedbackData.category;
+      if (feedbackData.improvementSuggestions) metadata.improvementSuggestions = feedbackData.improvementSuggestions;
+      if (feedbackData.wouldRecommend !== undefined) metadata.wouldRecommend = feedbackData.wouldRecommend;
+
       const { data, error } = await supabase
         .from('feedback')
         .insert([{
           user_id: user?.id || null,
           email: feedbackData.email,
           feedback_type: feedbackData.type,
+          category: feedbackData.category || null,
           message: feedbackData.message,
           rating: feedbackData.rating,
+          metadata: Object.keys(metadata).length > 0 ? metadata : null,
         }])
         .select()
         .single();

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import Button from '../UI/Button.jsx';
 import { Loader2, Music, Lightbulb, Check, Star } from 'lucide-react';
+import { useFeedback } from '../../context/FeedbackContext.jsx';
 
 export default function FeedbackForm({ onSubmit, onClose, isModal = false }) {
     const [feedback, setFeedback] = useState({
@@ -12,16 +13,16 @@ export default function FeedbackForm({ onSubmit, onClose, isModal = false }) {
         wouldRecommend: null
     });
     
-    const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState(false);
+    const { submitFeedback, isLoading, error } = useFeedback();
 
     const categories = [
-        { id: 'mood-detection', label: 'Mood Detection Accuracy', icon: <div className="text-2xl">🧠</div> },
-        { id: 'playlist-quality', label: 'Playlist Quality', icon: <Music className="w-6 h-6" /> },
-        { id: 'user-interface', label: 'User Interface', icon: <div className="text-2xl">🎨</div> },
-        { id: 'performance', label: 'App Performance', icon: <div className="text-2xl">⚡</div> },
-        { id: 'features', label: 'Feature Requests', icon: <Lightbulb className="w-6 h-6" /> },
-        { id: 'general', label: 'General Feedback', icon: <div className="text-2xl">💬</div> }
+        { id: 'mood-detection', label: 'Mood Detection Accuracy', icon: <div className="text-2xl">🧠</div>, type: 'general' },
+        { id: 'playlist-quality', label: 'Playlist Quality', icon: <Music className="w-6 h-6" />, type: 'general' },
+        { id: 'user-interface', label: 'User Interface', icon: <div className="text-2xl">🎨</div>, type: 'general' },
+        { id: 'performance', label: 'App Performance', icon: <div className="text-2xl">⚡</div>, type: 'bug' },
+        { id: 'features', label: 'Feature Requests', icon: <Lightbulb className="w-6 h-6" />, type: 'feature' },
+        { id: 'general', label: 'General Feedback', icon: <div className="text-2xl">💬</div>, type: 'general' }
     ];
 
     const handleCategoryChange = (categoryId) => {
@@ -42,15 +43,37 @@ export default function FeedbackForm({ onSubmit, onClose, isModal = false }) {
             return;
         }
 
-        setIsSubmitting(true);
-        
         try {
-            // TODO: Integrate with actual feedback API
-            console.log('Feedback submitted:', feedback);
+            // Find the selected category to get its type
+            const selectedCategory = categories.find(cat => cat.id === feedback.category);
+            const feedbackType = selectedCategory ? selectedCategory.type : 'general';
             
-            // Simulate API call
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            // Combine main message with improvement suggestions
+            let fullMessage = feedback.message.trim();
+            if (feedback.improvementSuggestions.trim()) {
+                fullMessage += '\n\nImprovement Suggestions:\n' + feedback.improvementSuggestions.trim();
+            }
+            if (feedback.wouldRecommend !== null) {
+                fullMessage += '\n\nWould recommend to others: ' + (feedback.wouldRecommend ? 'Yes' : 'No');
+            }
+
+            // Prepare data for database
+            const feedbackData = {
+                type: feedbackType,
+                category: feedback.category,
+                message: fullMessage,
+                rating: feedback.rating,
+                email: feedback.email.trim() || null,
+                improvementSuggestions: feedback.improvementSuggestions.trim() || null,
+                wouldRecommend: feedback.wouldRecommend
+            };
+
+            const result = await submitFeedback(feedbackData);
             
+            if (result.error) {
+                throw new Error(result.error.message || 'Failed to submit feedback');
+            }
+
             setSubmitted(true);
             if (onSubmit) onSubmit(feedback);
             
@@ -60,10 +83,9 @@ export default function FeedbackForm({ onSubmit, onClose, isModal = false }) {
                     onClose && onClose();
                 }, 2000);
             }
-        } catch (error) {
-            console.error('Error submitting feedback:', error);
-        } finally {
-            setIsSubmitting(false);
+        } catch (submitError) {
+            console.error('Error submitting feedback:', submitError);
+            // You could add error state handling here if needed
         }
     };
 
@@ -245,6 +267,14 @@ export default function FeedbackForm({ onSubmit, onClose, isModal = false }) {
                         />
                     </div>
 
+                    {/* Error Display */}
+                    {error && (
+                        <div className="bg-red-500/20 border border-red-500 text-red-400 p-4 rounded-lg">
+                            <p className="font-medium">Error submitting feedback:</p>
+                            <p className="text-sm mt-1">{error}</p>
+                        </div>
+                    )}
+
                     {/* Submit Button */}
                     <div className="flex justify-end space-x-4">
                         {isModal && onClose && (
@@ -258,14 +288,14 @@ export default function FeedbackForm({ onSubmit, onClose, isModal = false }) {
                         )}
                         <Button
                             type="submit"
-                            disabled={!feedback.category || !feedback.rating || !feedback.message.trim() || isSubmitting}
+                            disabled={!feedback.category || !feedback.rating || !feedback.message.trim() || isLoading}
                             className={`px-8 py-3 ${
                                 !feedback.category || !feedback.rating || !feedback.message.trim()
                                     ? 'bg-dark-hover text-text-medium cursor-not-allowed'
                                     : 'bg-primary-purple text-text-light hover:bg-[#C879E6]'
                             }`}
                         >
-                            {isSubmitting ? (
+                            {isLoading ? (
                                 <div className="flex items-center space-x-2">
                                     <Loader2 className="animate-spin h-5 w-5" />
                                     <span>Submitting...</span>
