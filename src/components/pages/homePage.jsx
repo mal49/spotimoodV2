@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import SectionCarousel from '../UI/SectionCarousel.jsx';
 import { useApp } from '../../context/AppContext.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
-import { Loader2, Sparkles } from 'lucide-react';
+import { Loader2, Sparkles, User } from 'lucide-react';
 
 export default function HomePage() {
     const { setGeneratedPlaylist, userHasStoredMood } = useApp();
@@ -45,6 +45,35 @@ export default function HomePage() {
                            'there';
 
         return `${timeGreeting}, ${displayName}!`;
+    }, [isAuthenticated, user, profile]);
+
+    // Helper function to get user's profile picture with fallbacks
+    const getProfilePicture = useCallback(() => {
+        if (!isAuthenticated) return null;
+        
+        // Try multiple sources for profile picture
+        return profile?.avatar_url || 
+               user?.user_metadata?.avatar_url || 
+               user?.user_metadata?.picture || 
+               null;
+    }, [isAuthenticated, user, profile]);
+
+    // Helper function to get user's initials for fallback avatar
+    const getUserInitials = useCallback(() => {
+        if (!isAuthenticated) return 'U';
+        
+        const displayName = profile?.display_name || 
+                           profile?.full_name || 
+                           user?.user_metadata?.display_name || 
+                           user?.user_metadata?.full_name ||
+                           user?.email?.split('@')[0] || 
+                           'User';
+        
+        return displayName
+            .split(' ')
+            .map(name => name.charAt(0).toUpperCase())
+            .slice(0, 2)
+            .join('');
     }, [isAuthenticated, user, profile]);
 
     // Function to search YouTube for songs
@@ -247,13 +276,46 @@ export default function HomePage() {
     return(
         <div className="min-h-screen bg-dark-bg text-text-light">
             <div className="p-6">
-                <h2 className='text-3xl font-bold mb-6'>{getPersonalizedGreeting()}</h2>
-
-                {/* Authentication status indicator (optional) */}
+                {/* User Profile Section */}
                 {isAuthenticated && (
-                    <div className="mb-4 text-sm text-text-medium">
-                        Welcome back! Your playlists and mood history are synced across all your devices.
+                    <div className="flex items-center space-x-4 mb-6">
+                        {/* Profile Picture */}
+                        <div className="relative">
+                            {getProfilePicture() ? (
+                                <img
+                                    src={getProfilePicture()}
+                                    alt="Profile"
+                                    className="w-16 h-16 rounded-full object-cover border-2 border-primary-purple shadow-lg"
+                                    onError={(e) => {
+                                        // Fallback to initials if image fails to load
+                                        e.target.style.display = 'none';
+                                        e.target.nextSibling.style.display = 'flex';
+                                    }}
+                                />
+                            ) : null}
+                            {/* Fallback avatar with initials */}
+                            <div 
+                                className={`w-16 h-16 rounded-full bg-gradient-to-br from-primary-purple to-[#C879E6] flex items-center justify-center text-white font-bold text-lg shadow-lg ${getProfilePicture() ? 'hidden' : 'flex'}`}
+                            >
+                                {getUserInitials()}
+                            </div>
+                            {/* Online indicator */}
+                            <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-400 rounded-full border-2 border-dark-bg"></div>
+                        </div>
+                        
+                        {/* Greeting and Status */}
+                        <div className="flex-1">
+                            <h2 className='text-3xl font-bold'>{getPersonalizedGreeting()}</h2>
+                            <div className="text-sm text-text-medium mt-1">
+                                Welcome back! Your playlists and mood history are synced across all your devices.
+                            </div>
+                        </div>
                     </div>
+                )}
+
+                {/* Greeting for non-authenticated users */}
+                {!isAuthenticated && (
+                    <h2 className='text-3xl font-bold mb-6'>{getPersonalizedGreeting()}</h2>
                 )}
 
                 {/* mood-based playlist section (Manual Input) */}
