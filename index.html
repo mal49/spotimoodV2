@@ -4,6 +4,24 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Content Security Policy to allow YouTube iframe integration and backend API calls -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.youtube.com https://www.gstatic.com;
+    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+    font-src 'self' https://fonts.gstatic.com;
+    img-src 'self' data: https: http:;
+    media-src 'self' https: http:;
+    frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com;
+    connect-src 'self' https: wss: ws: http://localhost:3001 http://127.0.0.1:3001;
+    object-src 'none';
+    base-uri 'self';
+  " />
+
+  <!-- Additional meta tags for better YouTube integration -->
+  <meta name="referrer" content="origin-when-cross-origin" />
+
   <title>Spotimood</title>
 </head>
 

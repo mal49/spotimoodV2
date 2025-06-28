@@ -59,7 +59,7 @@ const YouTubePlayer = ({ videoId, onReady, onStateChange }) => {
 
     setIsPlayerReady(false);
 
-    // Initialize the player with better error handling
+    // Initialize the player with improved configuration
     try {
       playerRef.current = new window.YT.Player(containerRef.current, {
         height: '0',
@@ -73,13 +73,12 @@ const YouTubePlayer = ({ videoId, onReady, onStateChange }) => {
           fs: 0,
           modestbranding: 1,
           rel: 0,
-          origin: window.location.origin,
-          // Use youtube-nocookie to reduce CORS issues
-          host: 'https://www.youtube-nocookie.com',
-          // Additional parameters for better compatibility
+          // Remove origin and host parameters that cause CORS issues
           iv_load_policy: 3,
           cc_load_policy: 0,
           showinfo: 0,
+          // Add these parameters to reduce CORS issues
+          widget_referrer: window.location.origin,
         },
         events: {
           onReady: (event) => {
@@ -107,8 +106,20 @@ const YouTubePlayer = ({ videoId, onReady, onStateChange }) => {
             console.error('YouTube Player Error:', event);
             setIsPlayerReady(false);
             
+            // Handle specific error types
+            const errorCode = event.data;
+            if (errorCode === 2) {
+              console.error('Invalid video ID');
+            } else if (errorCode === 5) {
+              console.error('HTML5 player error');
+            } else if (errorCode === 100) {
+              console.error('Video not found');
+            } else if (errorCode === 101 || errorCode === 150) {
+              console.error('Video not available (embedding disabled)');
+            }
+            
             // Retry logic for recoverable errors
-            if (retryCountRef.current < maxRetries) {
+            if (retryCountRef.current < maxRetries && (errorCode === 5 || errorCode === 2)) {
               retryCountRef.current += 1;
               console.log(`Retrying player creation (attempt ${retryCountRef.current}/${maxRetries})`);
               setTimeout(() => {
@@ -116,7 +127,7 @@ const YouTubePlayer = ({ videoId, onReady, onStateChange }) => {
               }, 1000 * retryCountRef.current); // Exponential backoff
             } else {
               setHasError(true);
-              console.error('Max retries reached, player failed to initialize');
+              console.error('Max retries reached or unrecoverable error, player failed to initialize');
             }
           },
         },
