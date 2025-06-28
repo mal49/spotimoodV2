@@ -3,11 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import SectionCarousel from '../UI/SectionCarousel.jsx';
 import { useApp } from '../../context/AppContext.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { usePlaylist } from '../../context/PlaylistContext.jsx';
+import { supabase } from '../../lib/supabase.js';
 import { Loader2, Sparkles, User } from 'lucide-react';
 
 export default function HomePage() {
     const { setGeneratedPlaylist, userHasStoredMood } = useApp();
     const { user, profile, isAuthenticated, loading: authLoading } = useAuth();
+    const { createPlaylist, addSongToPlaylist, fetchPlaylists } = usePlaylist();
     const navigate = useNavigate();
     const [moodInput, setMoodInput] = useState('');
     const [isLoadingMoodPlaylist, setIsLoadingMoodPlaylist] = useState(false);
@@ -197,9 +200,6 @@ export default function HomePage() {
             return;
         }
 
-        // Note: Allow playlist generation for both authenticated and guest users
-        // Authenticated users get additional benefits like saving playlists
-
         setIsLoadingMoodPlaylist(true);
         setMoodPlaylistError(null);
         setGeneratedPlaylist(null);
@@ -242,7 +242,89 @@ export default function HomePage() {
                 throw new Error('Invalid playlist data received from server');
             }
 
+            // Store in app context for immediate display
             setGeneratedPlaylist(playlist);
+
+            // If user is authenticated, automatically save to database
+            if (isAuthenticated && user) {
+                try {
+                    console.log('Saving generated playlist to database...');
+                    
+                    // Create the playlist in the database
+                    const savedPlaylist = await createPlaylist({
+                        name: playlist.title,
+                        description: playlist.description,
+                        mood_based: true
+                    });
+
+                    if (savedPlaylist && playlist.songs?.length > 0) {
+                        console.log('Adding songs to saved playlist:', playlist.songs);
+                        
+                        // Add each song to the playlist
+                        for (const [index, song] of playlist.songs.entries()) {
+                            try {
+                                // Create a fallback video ID if none exists
+                                const fallbackVideoId = song.videoId || `generated_song_${Date.now()}_${index}`;
+                                
+                                const songData = {
+                                    youtube_id: fallbackVideoId,
+                                    title: song.title,
+                                    artist: song.artist,
+                                    duration: song.duration || 'N/A',
+                                    thumbnail: song.thumbnail || 'https://placehold.co/60x60/AA60C8/FFFFFF?text=♪',
+                                    channelTitle: song.artist
+                                };
+                                
+                                console.log(`Adding song ${index + 1}:`, songData);
+                                const result = await addSongToPlaylist(savedPlaylist.id, songData);
+                                console.log(`Song ${index + 1} add result:`, result);
+                            } catch (songError) {
+                                console.error(`Failed to add song ${song.title} to database:`, songError);
+                            }
+                        }
+                        
+                        console.log('Finished adding all songs to playlist');
+
+                        // Save to generated_playlists table for tracking AI-generated playlists
+                        try {
+                            const { error: generatedError } = await supabase
+                                .from('generated_playlists')
+                                .insert([{
+                                    user_id: user.id,
+                                    playlist_id: savedPlaylist.id,
+                                    mood_prompt: moodToUse,
+                                    ai_response: {
+                                        originalPlaylist: playlist,
+                                        prompt: prompt,
+                                        generatedAt: new Date().toISOString()
+                                    }
+                                }]);
+
+                            if (generatedError) {
+                                console.warn('Failed to save to generated_playlists table:', generatedError);
+                            } else {
+                                console.log('Successfully saved playlist to database and generated_playlists table');
+                            }
+                        } catch (trackingError) {
+                            console.warn('Error saving to generated_playlists tracking table:', trackingError);
+                        }
+
+                        // Update the generated playlist with the saved playlist ID
+                        setGeneratedPlaylist({
+                            ...playlist,
+                            savedPlaylistId: savedPlaylist.id,
+                            isSaved: true
+                        });
+
+                        // Refresh playlists to show the newly saved one
+                        fetchPlaylists();
+                    }
+                } catch (saveError) {
+                    console.warn('Failed to save generated playlist to database:', saveError);
+                    // Still show the playlist even if saving failed
+                }
+            }
+
             navigate('/playlists');
         } catch (error) {
             console.error("Error generating mood playlist:", error);
@@ -250,7 +332,7 @@ export default function HomePage() {
         } finally {
             setIsLoadingMoodPlaylist(false);
         }
-    }, [setGeneratedPlaylist, navigate, isAuthenticated]);
+    }, [setGeneratedPlaylist, navigate, isAuthenticated, user, createPlaylist, addSongToPlaylist, fetchPlaylists]);
 
     useEffect(() => {
         if(userHasStoredMood) {
@@ -326,7 +408,10 @@ export default function HomePage() {
                     </h3>
                     <p className='text-text-medium mb-4'>
                         Tell us how you're feeling, and Spotimood will suggest a playlist just for you.
-                        {!isAuthenticated && ' Sign in to save and manage your playlists!'}
+                        {isAuthenticated 
+                            ? ' Your generated playlist will be automatically saved to your library!' 
+                            : ' Sign in to save and manage your playlists!'
+                        }
                     </p>
                     <textarea 
                     className='w-full bg-dark-bg text-text-light rounded-md p-3 mb-4 focus:outline-none focus:ring-2 focus:ring-primary-purple' 
@@ -338,7 +423,7 @@ export default function HomePage() {
                     {moodPlaylistError && (
                         <p className='text-red-400 text-sm mb-4'>{moodPlaylistError}</p>
                     )}
-                    {!isAuthenticated && (
+                    {!isAuthenticated ? (
                         <p className='text-yellow-400 text-sm mb-4 flex items-center gap-2'>
                             💡 Tip: <button 
                                 onClick={() => navigate('/auth')} 
@@ -346,6 +431,10 @@ export default function HomePage() {
                             >
                                 Sign in
                             </button> to save your mood playlists and get personalized recommendations!
+                        </p>
+                    ) : (
+                        <p className='text-green-400 text-sm mb-4 flex items-center gap-2'>
+                            ✨ Your generated playlist will be automatically saved to your library and synchronized across all your devices!
                         </p>
                     )}
                     <button
