@@ -48,7 +48,7 @@ export default function Header() {
     };
 
     return(
-        <div className="relative flex justify-center items-center mb-6 sticky top-0 bg-dark-bg z-10 py-4 px-4">
+        <div className="flex justify-center items-center mb-6 sticky top-0 bg-dark-bg z-10 py-4 px-4">
             {/* search bar - centered */}
             <div className="w-full max-w-2xl">
                 <SearchBar />
