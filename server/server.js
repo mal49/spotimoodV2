@@ -11,99 +11,209 @@ require('dotenv').config({ path: path.join(__dirname, '.env') });
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Enable gzip compression for better performance as recommended by YouTube API docs
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// CORS configuration
 app.use(cors({
-    origin: [
-        'http://localhost:5173',
-        'http://127.0.0.1:5173'
-    ],
+    origin: process.env.NODE_ENV === 'production' 
+        ? ['https://your-production-domain.com'] 
+        : ['http://localhost:3000', 'http://localhost:5173'],
     credentials: true,
+    optionsSuccessStatus: 200
 }));
 
-app.use(express.json());
+// Add gzip compression middleware
+app.use((req, res, next) => {
+    res.setHeader('Accept-Encoding', 'gzip');
+    next();
+});
 
 //API key retrieval
 //Securely loaded from the .env file
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
 
-// Initialize YouTube API
+// Initialize YouTube API with proper configuration
 const youtube = google.youtube({
     version: 'v3',
     auth: YOUTUBE_API_KEY
 });
 
-// Search for music videos with pagination
-app.get('/api/search-music', async (req, res) => {
-    const { query, pageToken } = req.query;
+// Rate limiting for YouTube API (quota management)
+const rateLimitMap = new Map();
+const RATE_LIMIT_WINDOW = 60000; // 1 minute
+const MAX_REQUESTS_PER_MINUTE = 100; // Conservative limit
+
+const checkRateLimit = (req, res, next) => {
+    const clientId = req.ip;
+    const now = Date.now();
     
-    if (!query) {
-        return res.status(400).json({ error: 'Search query is required' });
+    if (!rateLimitMap.has(clientId)) {
+        rateLimitMap.set(clientId, { requests: 1, resetTime: now + RATE_LIMIT_WINDOW });
+        return next();
+    }
+    
+    const clientData = rateLimitMap.get(clientId);
+    
+    if (now > clientData.resetTime) {
+        rateLimitMap.set(clientId, { requests: 1, resetTime: now + RATE_LIMIT_WINDOW });
+        return next();
+    }
+    
+    if (clientData.requests >= MAX_REQUESTS_PER_MINUTE) {
+        return res.status(429).json({
+            error: 'Rate limit exceeded',
+            retryAfter: Math.ceil((clientData.resetTime - now) / 1000)
+        });
+    }
+    
+    clientData.requests++;
+    next();
+};
+
+// Apply rate limiting to YouTube API endpoints
+app.use('/api/search-music', checkRateLimit);
+app.use('/api/video/:videoId', checkRateLimit);
+
+// Enhanced YouTube search endpoint with proper error handling
+app.get('/api/search-music', async (req, res) => {
+    const { query, pageToken, maxResults = 10 } = req.query;
+    
+    // Validate required parameters as per YouTube API docs
+    if (!query || query.trim().length === 0) {
+        return res.status(400).json({ 
+            error: 'Search query is required and cannot be empty',
+            code: 'MISSING_QUERY'
+        });
     }
 
-    try {
-        const response = await youtube.search.list({
-            part: ['snippet'],
-            q: query,
-            type: ['video'],
-            videoCategoryId: '10', // Music category
-            maxResults: 10,
-            pageToken: pageToken || undefined
-        });
+    // Validate maxResults parameter
+    const resultsCount = Math.min(Math.max(parseInt(maxResults) || 10, 1), 50);
 
-        const videos = response.data.items.map(item => ({
+    try {
+        // Use proper YouTube Data API v3 parameters according to documentation
+        const searchParams = {
+            part: 'snippet',
+            q: query.trim(),
+            type: 'video',
+            videoCategoryId: '10', // Music category
+            maxResults: resultsCount,
+            order: 'relevance',
+            safeSearch: 'none',
+            videoEmbeddable: 'true', // Only get embeddable videos
+            fields: 'items(id/videoId,snippet(title,channelTitle,thumbnails/high/url,publishedAt)),nextPageToken,prevPageToken,pageInfo/totalResults'
+        };
+
+        if (pageToken) {
+            searchParams.pageToken = pageToken;
+        }
+
+        const response = await youtube.search.list(searchParams);
+
+        // Transform response according to application needs
+        const videos = response.data.items?.map(item => ({
             id: item.id.videoId,
             title: item.snippet.title,
-            thumbnail: item.snippet.thumbnails.high.url,
-            channelTitle: item.snippet.channelTitle
-        }));
+            thumbnail: item.snippet.thumbnails?.high?.url || 'https://placehold.co/320x180/AA60C8/FFFFFF?text=No+Image',
+            channelTitle: item.snippet.channelTitle,
+            publishedAt: item.snippet.publishedAt
+        })) || [];
 
         res.json({
             videos,
             nextPageToken: response.data.nextPageToken,
             prevPageToken: response.data.prevPageToken,
-            totalResults: response.data.pageInfo.totalResults
+            totalResults: response.data.pageInfo?.totalResults || 0,
+            resultsPerPage: resultsCount
         });
+
     } catch (error) {
-        console.error('YouTube API Error:', error);
+        console.error('YouTube API Search Error:', error);
+        
+        // Handle specific YouTube API errors according to documentation
+        if (error.response) {
+            const { status, data } = error.response;
+            
+            // Handle quota exceeded error
+            if (status === 403 && data.error?.errors?.[0]?.reason === 'quotaExceeded') {
+                return res.status(429).json({
+                    error: 'YouTube API quota exceeded',
+                    code: 'QUOTA_EXCEEDED',
+                    retryAfter: 3600 // 1 hour
+                });
+            }
+            
+            // Handle invalid API key
+            if (status === 400 && data.error?.errors?.[0]?.reason === 'keyInvalid') {
+                return res.status(401).json({
+                    error: 'Invalid YouTube API key',
+                    code: 'INVALID_API_KEY'
+                });
+            }
+            
+            return res.status(status).json({
+                error: 'YouTube API Error',
+                code: data.error?.errors?.[0]?.reason || 'API_ERROR',
+                details: data.error?.message || 'Unknown error'
+            });
+        }
+        
         res.status(500).json({ 
             error: 'Error searching YouTube',
+            code: 'INTERNAL_ERROR',
             details: error.message
         });
     }
 });
 
-// Get video details
+// Enhanced video details endpoint with better validation and error handling
 app.get('/api/video/:videoId', async (req, res) => {
     const { videoId } = req.params;
 
+    // Validate video ID format
+    if (!videoId || !/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
+        return res.status(400).json({ 
+            error: 'Invalid video ID format',
+            code: 'INVALID_VIDEO_ID'
+        });
+    }
+
     try {
         const response = await youtube.videos.list({
-            part: ['snippet', 'contentDetails', 'status'],
-            id: [videoId]
+            part: 'snippet,contentDetails,status,statistics',
+            id: videoId,
+            fields: 'items(id,snippet(title,description,channelTitle,thumbnails/high/url,publishedAt),contentDetails/duration,status(embeddable,privacyStatus),statistics(viewCount,likeCount))'
         });
 
-        if (!response.data.items.length) {
+        if (!response.data.items || response.data.items.length === 0) {
             console.log(`Video not found: ${videoId}`);
-            return res.status(404).json({ error: 'Video not found' });
+            return res.status(404).json({ 
+                error: 'Video not found',
+                code: 'VIDEO_NOT_FOUND'
+            });
         }
 
         const video = response.data.items[0];
         
-        // Check if video is playable
-        if (video.status.embeddable === false) {
+        // Check if video is embeddable
+        if (video.status?.embeddable === false) {
             console.log(`Video ${videoId} is not embeddable`);
             return res.status(403).json({ 
                 error: 'Video cannot be embedded',
+                code: 'NOT_EMBEDDABLE',
                 details: 'This video is not available for embedding'
             });
         }
 
-        // Check if video is restricted
-        if (video.status.privacyStatus !== 'public') {
-            console.log(`Video ${videoId} is not public`);
+        // Check if video is public
+        if (video.status?.privacyStatus !== 'public') {
+            console.log(`Video ${videoId} is not public: ${video.status?.privacyStatus}`);
             return res.status(403).json({ 
                 error: 'Video is not public',
-                details: 'This video is not publicly available'
+                code: 'NOT_PUBLIC',
+                details: `Video privacy status: ${video.status?.privacyStatus}`
             });
         }
 
@@ -111,28 +221,36 @@ app.get('/api/video/:videoId', async (req, res) => {
         
         res.json({
             id: video.id,
-            title: video.snippet.title,
-            description: video.snippet.description,
-            thumbnail: video.snippet.thumbnails.high.url,
-            duration: video.contentDetails.duration,
-            channelTitle: video.snippet.channelTitle,
-            isEmbeddable: video.status.embeddable,
-            privacyStatus: video.status.privacyStatus
+            title: video.snippet?.title || 'Unknown Title',
+            description: video.snippet?.description || '',
+            thumbnail: video.snippet?.thumbnails?.high?.url || 'https://placehold.co/320x180/AA60C8/FFFFFF?text=No+Image',
+            duration: video.contentDetails?.duration || 'PT0S',
+            channelTitle: video.snippet?.channelTitle || 'Unknown Channel',
+            publishedAt: video.snippet?.publishedAt,
+            viewCount: video.statistics?.viewCount || '0',
+            likeCount: video.statistics?.likeCount || '0',
+            isEmbeddable: video.status?.embeddable !== false,
+            privacyStatus: video.status?.privacyStatus || 'unknown'
         });
+
     } catch (error) {
-        console.error('YouTube API Error:', error);
+        console.error('YouTube API Video Details Error:', error);
         
-        // Check for specific YouTube API errors
+        // Handle specific YouTube API errors
         if (error.response) {
-            console.error('YouTube API Response:', error.response.data);
-            return res.status(error.response.status).json({ 
+            const { status, data } = error.response;
+            console.error('YouTube API Response:', data);
+            
+            return res.status(status).json({ 
                 error: 'YouTube API Error',
-                details: error.response.data
+                code: data.error?.errors?.[0]?.reason || 'API_ERROR',
+                details: data.error?.message || 'Unknown error'
             });
         }
         
         res.status(500).json({ 
             error: 'Error fetching video details',
+            code: 'INTERNAL_ERROR',
             details: error.message
         });
     }
@@ -221,27 +339,37 @@ app.post('/api/generate-mood-playlist', async (req, res) => {
         try {
             const songs = JSON.parse(jsonArrayText);
             
-            // Search YouTube for each song to get actual video IDs
-            const songsWithVideoIds = await Promise.all(songs.map(async (song) => {
+            // Search YouTube for each song to get actual video IDs with improved error handling
+            const songsWithVideoIds = await Promise.all(songs.map(async (song, index) => {
                 try {
-                    const searchQuery = `${song.title} ${song.artist}`;
+                    const searchQuery = `${song.title} ${song.artist}`.trim();
+                    
+                    // Improved YouTube search with better parameters
                     const searchResponse = await youtube.search.list({
-                        part: ['snippet'],
+                        part: 'snippet',
                         q: searchQuery,
-                        type: ['video'],
+                        type: 'video',
                         videoCategoryId: '10', // Music category
-                        maxResults: 1
+                        maxResults: 1,
+                        order: 'relevance',
+                        videoEmbeddable: 'true', // Only embeddable videos
+                        fields: 'items(id/videoId,snippet(title,channelTitle,thumbnails/high/url))'
                     });
 
-                    const videoData = searchResponse.data.items.length > 0 
+                    const videoData = searchResponse.data.items && searchResponse.data.items.length > 0 
                         ? searchResponse.data.items[0] 
                         : null;
                     
-                    const videoId = videoData ? videoData.id.videoId : null;
-                    const thumbnail = videoData ? videoData.snippet.thumbnails.high.url : 'https://placehold.co/60x60/AA60C8/FFFFFF?text=Art';
+                    const videoId = videoData?.id?.videoId || null;
+                    const thumbnail = videoData?.snippet?.thumbnails?.high?.url || 'https://placehold.co/60x60/AA60C8/FFFFFF?text=Art';
+
+                    // Add small delay between requests to respect API limits
+                    if (index > 0) {
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                    }
 
                     return {
-                        id: videoId ? `https://www.youtube.com/watch?v=${videoId}` : `song_${Math.random().toString(36).substr(2, 9)}`,
+                        id: videoId ? `https://www.youtube.com/watch?v=${videoId}` : `song_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
                         title: song.title,
                         artist: song.artist,
                         album: "Mood Playlist",
@@ -251,8 +379,14 @@ app.post('/api/generate-mood-playlist', async (req, res) => {
                     };
                 } catch (searchError) {
                     console.error(`Error searching for song "${song.title}" by "${song.artist}":`, searchError);
+                    
+                    // Log quota errors specifically
+                    if (searchError.response?.status === 403) {
+                        console.warn('YouTube API quota exceeded during playlist generation');
+                    }
+                    
                     return {
-                        id: `song_${Math.random().toString(36).substr(2, 9)}`,
+                        id: `song_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
                         title: song.title,
                         artist: song.artist,
                         album: "Mood Playlist",

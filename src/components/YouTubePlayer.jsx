@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 
 const YouTubePlayer = ({ videoId, onReady, onStateChange }) => {
   const playerRef = useRef(null);
@@ -6,14 +6,54 @@ const YouTubePlayer = ({ videoId, onReady, onStateChange }) => {
   const [isApiReady, setIsApiReady] = useState(false);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const retryCountRef = useRef(0);
   const maxRetries = 3;
+  const loadTimeoutRef = useRef(null);
+
+  // Check if YouTube API is already loaded
+  const checkApiReady = useCallback(() => {
+    return !!(window.YT && window.YT.Player && typeof window.YT.Player === 'function');
+  }, []);
 
   useEffect(() => {
+    // Clear any existing timeout
+    if (loadTimeoutRef.current) {
+      clearTimeout(loadTimeoutRef.current);
+    }
+
     // Check if the API is already loaded
-    if (window.YT && window.YT.Player) {
+    if (checkApiReady()) {
       setIsApiReady(true);
+      setHasError(false);
       return;
+    }
+
+    // Prevent loading multiple scripts
+    if (document.querySelector('script[src*="youtube.com/iframe_api"]')) {
+      // Script is already loading, wait for it
+      const checkInterval = setInterval(() => {
+        if (checkApiReady()) {
+          clearInterval(checkInterval);
+          setIsApiReady(true);
+          setHasError(false);
+        }
+      }, 100);
+
+      // Timeout after 10 seconds
+      loadTimeoutRef.current = setTimeout(() => {
+        clearInterval(checkInterval);
+        console.error('YouTube API failed to load within timeout period');
+        setHasError(true);
+        setErrorMessage('YouTube API loading timeout');
+      }, 10000);
+
+      return () => {
+        clearInterval(checkInterval);
+        if (loadTimeoutRef.current) {
+          clearTimeout(loadTimeoutRef.current);
+        }
+      };
     }
 
     // Load the YouTube IFrame API
@@ -23,30 +63,64 @@ const YouTubePlayer = ({ videoId, onReady, onStateChange }) => {
     tag.onerror = () => {
       console.error('Failed to load YouTube API script');
       setHasError(true);
+      setErrorMessage('Failed to load YouTube API');
     };
     
     const firstScriptTag = document.getElementsByTagName('script')[0];
-    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+    if (firstScriptTag && firstScriptTag.parentNode) {
+      firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+    } else {
+      document.head.appendChild(tag);
+    }
 
-    // Initialize the player when the API is ready
+    // Global callback for when API is ready
+    const originalCallback = window.onYouTubeIframeAPIReady;
     window.onYouTubeIframeAPIReady = () => {
       setIsApiReady(true);
       setHasError(false);
+      setErrorMessage('');
+      
+      // Call original callback if it existed
+      if (originalCallback && typeof originalCallback === 'function') {
+        originalCallback();
+      }
     };
 
+    // Timeout fallback
+    loadTimeoutRef.current = setTimeout(() => {
+      if (!checkApiReady()) {
+        console.error('YouTube API failed to load within timeout period');
+        setHasError(true);
+        setErrorMessage('YouTube API loading timeout');
+      }
+    }, 10000);
+
     return () => {
+      if (loadTimeoutRef.current) {
+        clearTimeout(loadTimeoutRef.current);
+      }
+      
+      // Clean up player on unmount
       if (playerRef.current && typeof playerRef.current.destroy === 'function') {
         try {
           playerRef.current.destroy();
         } catch (error) {
-          console.warn('Error destroying YouTube player:', error);
+          console.warn('Error destroying YouTube player on unmount:', error);
         }
       }
     };
-  }, []);
+  }, [checkApiReady]);
 
-  const createPlayer = () => {
+  const createPlayer = useCallback(() => {
     if (!isApiReady || !videoId || !containerRef.current || hasError) return;
+
+    // Validate video ID format
+    if (!/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
+      console.error('Invalid YouTube video ID format:', videoId);
+      setHasError(true);
+      setErrorMessage('Invalid video ID format');
+      return;
+    }
 
     // Destroy existing player before creating new one
     if (playerRef.current && typeof playerRef.current.destroy === 'function') {
@@ -55,9 +129,12 @@ const YouTubePlayer = ({ videoId, onReady, onStateChange }) => {
       } catch (error) {
         console.warn('Error destroying existing player:', error);
       }
+      playerRef.current = null;
     }
 
     setIsPlayerReady(false);
+    setHasError(false);
+    setErrorMessage('');
 
     // Initialize the player with improved configuration
     try {
@@ -73,19 +150,20 @@ const YouTubePlayer = ({ videoId, onReady, onStateChange }) => {
           fs: 0,
           modestbranding: 1,
           rel: 0,
-          // Remove origin and host parameters that cause CORS issues
-          iv_load_policy: 3,
-          cc_load_policy: 0,
-          showinfo: 0,
-          // Add these parameters to reduce CORS issues
-          widget_referrer: window.location.origin,
+          iv_load_policy: 3, // Hide annotations
+          cc_load_policy: 0, // Hide captions by default
+          showinfo: 0, // Hide video info
+          playsinline: 1, // Play inline on mobile
+          origin: window.location.origin, // Set origin for security
         },
         events: {
           onReady: (event) => {
             setIsPlayerReady(true);
             setHasError(false);
+            setErrorMessage('');
             retryCountRef.current = 0;
-            if (onReady) {
+            
+            if (onReady && typeof onReady === 'function') {
               try {
                 onReady(event.target);
               } catch (error) {
@@ -94,7 +172,7 @@ const YouTubePlayer = ({ videoId, onReady, onStateChange }) => {
             }
           },
           onStateChange: (event) => {
-            if (onStateChange) {
+            if (onStateChange && typeof onStateChange === 'function') {
               try {
                 onStateChange(event);
               } catch (error) {
@@ -106,25 +184,50 @@ const YouTubePlayer = ({ videoId, onReady, onStateChange }) => {
             console.error('YouTube Player Error:', event);
             setIsPlayerReady(false);
             
-            // Handle specific error types
+            // Handle specific error types according to YouTube API documentation
             const errorCode = event.data;
-            if (errorCode === 2) {
-              console.error('Invalid video ID');
-            } else if (errorCode === 5) {
-              console.error('HTML5 player error');
-            } else if (errorCode === 100) {
-              console.error('Video not found');
-            } else if (errorCode === 101 || errorCode === 150) {
-              console.error('Video not available (embedding disabled)');
+            let errorMsg = 'Unknown error';
+            let shouldRetry = false;
+
+            switch (errorCode) {
+              case 2:
+                errorMsg = 'Invalid video ID or video contains invalid parameters';
+                shouldRetry = false;
+                break;
+              case 5:
+                errorMsg = 'HTML5 player error - video cannot be played';
+                shouldRetry = true;
+                break;
+              case 100:
+                errorMsg = 'Video not found or has been removed';
+                shouldRetry = false;
+                break;
+              case 101:
+                errorMsg = 'Video owner does not allow embedding';
+                shouldRetry = false;
+                break;
+              case 150:
+                errorMsg = 'Video owner does not allow embedding';
+                shouldRetry = false;
+                break;
+              default:
+                errorMsg = `YouTube player error (code: ${errorCode})`;
+                shouldRetry = true;
             }
+
+            console.error('YouTube Error Details:', errorMsg);
+            setErrorMessage(errorMsg);
             
             // Retry logic for recoverable errors
-            if (retryCountRef.current < maxRetries && (errorCode === 5 || errorCode === 2)) {
+            if (shouldRetry && retryCountRef.current < maxRetries) {
               retryCountRef.current += 1;
               console.log(`Retrying player creation (attempt ${retryCountRef.current}/${maxRetries})`);
+              
+              // Exponential backoff: 1s, 2s, 4s
+              const retryDelay = Math.pow(2, retryCountRef.current - 1) * 1000;
               setTimeout(() => {
                 createPlayer();
-              }, 1000 * retryCountRef.current); // Exponential backoff
+              }, retryDelay);
             } else {
               setHasError(true);
               console.error('Max retries reached or unrecoverable error, player failed to initialize');
@@ -135,47 +238,56 @@ const YouTubePlayer = ({ videoId, onReady, onStateChange }) => {
     } catch (error) {
       console.error('Error creating YouTube player:', error);
       setIsPlayerReady(false);
+      setErrorMessage('Failed to create player instance');
       
-      // Retry logic
+      // Retry logic for player creation errors
       if (retryCountRef.current < maxRetries) {
         retryCountRef.current += 1;
+        const retryDelay = Math.pow(2, retryCountRef.current - 1) * 1000;
         setTimeout(() => {
           createPlayer();
-        }, 1000 * retryCountRef.current);
+        }, retryDelay);
       } else {
         setHasError(true);
       }
     }
-  };
+  }, [isApiReady, videoId, onReady, onStateChange, hasError]);
 
   useEffect(() => {
     createPlayer();
 
     return () => {
+      // Cleanup on dependency change
       if (playerRef.current && typeof playerRef.current.destroy === 'function') {
         try {
           playerRef.current.destroy();
         } catch (error) {
           console.warn('Error destroying player in cleanup:', error);
         }
+        playerRef.current = null;
       }
     };
-  }, [isApiReady, videoId, onReady, onStateChange]);
+  }, [createPlayer]);
 
   // Reset error state when videoId changes
   useEffect(() => {
-    if (hasError) {
+    if (hasError && videoId) {
       setHasError(false);
+      setErrorMessage('');
       retryCountRef.current = 0;
     }
-  }, [videoId]);
+  }, [videoId, hasError]);
 
   return (
     <div className="youtube-player-container">
-      <div ref={containerRef} className="hidden" />
-      {hasError && (
-        <div className="hidden">
-          {/* Error state - could add user-visible error handling here if needed */}
+      <div 
+        ref={containerRef} 
+        className="hidden" 
+        id={`youtube-player-${videoId || 'default'}`}
+      />
+      {hasError && process.env.NODE_ENV === 'development' && (
+        <div className="text-red-500 text-xs p-2 bg-red-50 rounded">
+          YouTube Player Error: {errorMessage}
         </div>
       )}
     </div>

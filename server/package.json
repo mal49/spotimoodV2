@@ -15,7 +15,6 @@
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
     "googleapis": "^150.0.1",
-    "node-fetch": "^3.3.2",
-    "youtube-api-search": "^0.0.5"
+    "node-fetch": "^3.3.2"
   }
 }

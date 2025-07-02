@@ -72,68 +72,276 @@ Spotimood combines your current emotional state with intelligent music curation 
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js 18+ and npm
-- Supabase account
-- YouTube Data API key
-- Google Gemini API key
 
-### Installation
+Before running Spotimood, ensure you have the following installed and configured:
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/yourusername/spotimood.git
-   cd spotimood
-   ```
+- **Node.js 18+** - [Download from nodejs.org](https://nodejs.org/)
+- **npm** (comes with Node.js) or **yarn**
+- **Git** - [Download from git-scm.com](https://git-scm.com/)
+- **Supabase account** - [Sign up at supabase.com](https://supabase.com/)
+- **Google Cloud Console account** - For YouTube Data API and Gemini AI API keys
 
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
+### 📋 Step-by-Step Installation Guide
 
-3. **Set up environment variables**
-   
-   Create a `.env` file in the root directory:
-   ```env
-   # Supabase Configuration
-   VITE_SUPABASE_URL=your_supabase_project_url
-   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-   ```
+#### 1. **Clone and Setup Repository**
 
-   Create a `.env` file in the `server` directory:
-   ```env
-   # API Keys
-   YOUTUBE_API_KEY=your_youtube_api_key
-   GEMINI_API_KEY=your_gemini_api_key
-   PORT=3001
-   ```
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/spotimood.git
+cd spotimood
 
-4. **Set up Supabase database**
-   
-   Run the SQL schema in your Supabase SQL Editor (see `database-schema.sql` for the complete schema).
+# Install frontend dependencies
+npm install
 
-5. **Configure authentication providers**
-   
-   In your Supabase dashboard:
-   - Go to Authentication → Providers
-   - Enable Email, Google, and GitHub providers
-   - Set redirect URLs: `http://localhost:5173/auth/callback`
+# Install backend dependencies
+cd server
+npm install
+cd ..
+```
 
-6. **Start the development servers**
-   
-   Frontend:
-   ```bash
-   npm run dev
-   ```
-   
-   Backend:
-   ```bash
-   cd server
-   npm start
-   ```
+#### 2. **Create API Keys and Accounts**
 
-7. **Open your browser**
-   
-   Navigate to `http://localhost:5173`
+##### 2.1 **Supabase Setup**
+1. Go to [supabase.com](https://supabase.com/) and create a new project
+2. Wait for the project to be fully initialized (usually 2-3 minutes)
+3. Go to **Settings** → **API** in your Supabase dashboard
+4. Copy your **Project URL** and **anon public** key
+
+##### 2.2 **YouTube Data API Setup**
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project or select an existing one
+3. Enable the **YouTube Data API v3**:
+   - Go to **APIs & Services** → **Library**
+   - Search for "YouTube Data API v3" and enable it
+4. Create credentials:
+   - Go to **APIs & Services** → **Credentials**
+   - Click **Create Credentials** → **API Key**
+   - Copy the generated API key
+
+##### 2.3 **Google Gemini AI Setup**
+1. Go to [Google AI Studio](https://makersuite.google.com/app/apikey)
+2. Click **Create API Key**
+3. Copy the generated API key
+
+#### 3. **Environment Configuration**
+
+##### 3.1 **Frontend Environment (.env)**
+Create a `.env` file in the root directory:
+
+```env
+# Supabase Configuration
+VITE_SUPABASE_URL=https://your-project-id.supabase.co
+VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+
+# Development Settings (optional)
+VITE_DEV_MODE=true
+```
+
+##### 3.2 **Backend Environment (server/.env)**
+Create a `.env` file in the `server` directory:
+
+```env
+# API Keys
+YOUTUBE_API_KEY=your-youtube-api-key
+GEMINI_API_KEY=your-gemini-api-key
+
+# Server Configuration
+PORT=3001
+NODE_ENV=development
+
+# CORS Settings (for development)
+FRONTEND_URL=http://localhost:5173
+```
+
+#### 4. **Database Setup**
+
+##### 4.1 **Import Database Schema**
+1. Open your Supabase dashboard
+2. Go to **SQL Editor**
+3. Create a new query
+4. Copy the contents of `database-schema.sql` and paste it
+5. Click **Run** to execute the schema
+
+##### 4.2 **Verify Database Tables**
+Check that these tables were created:
+- `users`
+- `moods`
+- `playlists`
+- `songs`
+- `playlist_songs`
+- `feedback`
+
+#### 5. **Authentication Configuration**
+
+##### 5.1 **Configure Auth Providers in Supabase**
+1. Go to **Authentication** → **Providers** in Supabase dashboard
+2. **Enable Email Provider**:
+   - Toggle **Enable email provider** to ON
+   - Configure email templates if needed
+
+3. **Enable Google OAuth** (optional):
+   - Toggle **Enable Google provider** to ON
+   - Add your Google OAuth client ID and secret
+   - Set redirect URL: `http://localhost:5173/auth/callback`
+
+4. **Enable GitHub OAuth** (optional):
+   - Toggle **Enable GitHub provider** to ON
+   - Add your GitHub OAuth app credentials
+   - Set redirect URL: `http://localhost:5173/auth/callback`
+
+##### 5.2 **Configure Site URL**
+1. Go to **Authentication** → **URL Configuration**
+2. Set **Site URL**: `http://localhost:5173`
+3. Add **Redirect URLs**: `http://localhost:5173/auth/callback`
+
+#### 6. **Running the Application**
+
+##### 6.1 **Start Backend Server**
+```bash
+# Navigate to server directory
+cd server
+
+# Start the backend server
+npm start
+
+# You should see: "Server running on port 3001"
+```
+
+##### 6.2 **Start Frontend Development Server**
+Open a new terminal window/tab:
+
+```bash
+# Make sure you're in the root directory
+cd spotimood
+
+# Start the frontend development server
+npm run dev
+
+# You should see: "Local: http://localhost:5173"
+```
+
+##### 6.3 **Verify Setup**
+1. Open your browser and navigate to `http://localhost:5173`
+2. You should see the Spotimood landing page
+3. Try creating an account or logging in
+4. Test the mood questionnaire functionality
+
+### 🔧 Development Workflow
+
+#### **Running Both Servers Simultaneously**
+For convenience, you can run both servers in separate terminal windows:
+
+**Terminal 1 (Backend):**
+```bash
+cd server
+npm start
+```
+
+**Terminal 2 (Frontend):**
+```bash
+npm run dev
+```
+
+#### **Development Scripts**
+```bash
+# Frontend development
+npm run dev          # Start development server
+npm run build        # Build for production
+npm run preview      # Preview production build
+npm run lint         # Run ESLint
+
+# Backend development
+cd server
+npm start            # Start server with nodemon
+npm run dev          # Alternative development command
+```
+
+### 🐛 Troubleshooting
+
+#### **Common Issues and Solutions**
+
+##### **1. "Module not found" errors**
+```bash
+# Clean install dependencies
+rm -rf node_modules package-lock.json
+npm install
+
+# For server
+cd server
+rm -rf node_modules package-lock.json
+npm install
+```
+
+##### **2. Database connection issues**
+- Verify your Supabase URL and anon key in `.env`
+- Check that your Supabase project is fully initialized
+- Ensure database schema was imported correctly
+
+##### **3. API key errors**
+- Verify all API keys are correctly copied (no extra spaces)
+- Check API quotas in Google Cloud Console
+- Ensure YouTube Data API v3 is enabled
+
+##### **4. Authentication not working**
+- Check Supabase Auth configuration
+- Verify redirect URLs are set correctly
+- Ensure Site URL matches your development URL
+
+##### **5. CORS errors**
+- Verify `FRONTEND_URL` in server `.env` matches your frontend URL
+- Check that both servers are running on correct ports
+
+##### **6. Port conflicts**
+```bash
+# If port 3001 or 5173 are in use, kill processes:
+# On Windows:
+netstat -ano | findstr :3001
+taskkill /PID <process_id> /F
+
+# On Mac/Linux:
+lsof -ti:3001 | xargs kill -9
+lsof -ti:5173 | xargs kill -9
+```
+
+### 🧪 Testing the Application
+
+#### **Frontend Testing**
+1. **Landing Page**: Should load without errors
+2. **Authentication**: Try signup/login with email
+3. **Mood Questionnaire**: Complete a mood assessment
+4. **Music Search**: Search for songs
+5. **Playlist Creation**: Create and manage playlists
+
+#### **Backend Testing**
+Test API endpoints using curl or Postman:
+
+```bash
+# Test server health
+curl http://localhost:3001/health
+
+# Test YouTube search (replace YOUR_API_KEY)
+curl "http://localhost:3001/api/search?q=test&key=YOUR_YOUTUBE_API_KEY"
+```
+
+### 🚀 Production Deployment
+
+#### **Frontend (Vercel/Netlify)**
+```bash
+npm run build
+# Deploy the 'dist' folder
+```
+
+#### **Backend (Railway/Heroku)**
+```bash
+# Set environment variables in your hosting platform
+# Deploy the server folder
+```
+
+#### **Environment Variables for Production**
+Update your production environment variables:
+- Use production Supabase URLs
+- Set `NODE_ENV=production`
+- Update CORS settings for production domains
 
 ## 📁 Project Structure
 
