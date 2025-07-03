@@ -2,6 +2,7 @@ import React, {useState} from 'react';
 import SongRow from '../songRow.jsx';
 import { usePlayer } from '../../context/PlayerContext';
 import { Play, Heart, MoreHorizontal, Shuffle } from 'lucide-react';
+import config from '../../lib/config.js';
 
 export default function PlaylistPage({playlistData, onBack}){
     const defaultPlaylistTitle = "MY FAVORITE HITS";
@@ -48,7 +49,7 @@ export default function PlaylistPage({playlistData, onBack}){
             chatHistory.push({role: 'user', parts: [{text: prompt }] });
             const payload = {contents: chatHistory};
 
-            const response = await fetch('http://localhost:3001/api/generate-mood-playlist', {
+            const response = await fetch(`${config.API_BASE_URL}/api/generate-mood-playlist`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)

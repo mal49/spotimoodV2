@@ -1,6 +1,7 @@
 import React from 'react';
 import { Play } from 'lucide-react';
 import { usePlayer } from '../../context/PlayerContext';
+import config from '../../lib/config.js';
 
 export default function AlbumCard({ imageUrl, title, artist, videoId, query }) {
     const { setQueue, setCurrentIndex, setPlaying } = usePlayer();
@@ -20,7 +21,7 @@ export default function AlbumCard({ imageUrl, title, artist, videoId, query }) {
         } else if (query) {
             // If we have a query, search for more songs and create a playlist
             try {
-                const response = await fetch(`http://localhost:3001/api/search-music?query=${encodeURIComponent(query)}`);
+                const response = await fetch(`${config.API_BASE_URL}/api/search-music?query=${encodeURIComponent(query)}`);
                 if (response.ok) {
                     const data = await response.json();
                     const songs = data.videos.slice(0, 10).map(video => ({

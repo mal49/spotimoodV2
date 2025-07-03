@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { usePlayer } from '../context/PlayerContext';
 import { usePlaylist } from '../context/PlaylistContext';
 import { Edit, Trash2, Play, Shuffle, Music } from 'lucide-react';
+import config from '../lib/config.js';
 
 export default function PlaylistDetail() {
     const { playlistId } = useParams();
@@ -152,7 +153,7 @@ export default function PlaylistDetail() {
             };
 
             console.log('Regenerating songs for playlist...');
-            const response = await fetch('http://localhost:3001/api/generate-mood-playlist', {
+            const response = await fetch(`${config.API_BASE_URL}/api/generate-mood-playlist`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
