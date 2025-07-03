@@ -18,7 +18,11 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // CORS configuration
 app.use(cors({
     origin: process.env.NODE_ENV === 'production' 
-        ? ['https://your-production-domain.com'] 
+        ? [
+            'https://your-app.vercel.app',  // We'll update this after Vercel deployment
+            'https://spotimood.vercel.app', // Alternative domain
+            /\.vercel\.app$/  // Allow any Vercel subdomain
+          ] 
         : ['http://localhost:3000', 'http://localhost:5173'],
     credentials: true,
     optionsSuccessStatus: 200
