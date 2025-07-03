@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useReducer, useCallback } from 'react';
+import config from '../lib/config.js';
 
 const SearchContext = createContext();
 
@@ -88,7 +89,7 @@ export function SearchProvider({ children }) {
       }
 
       const response = await fetch(
-        `http://localhost:3001/api/search-music?${params.toString()}`,
+        `${config.API_BASE_URL}/api/search-music?${params.toString()}`,
         {
           method: 'GET',
           headers: {

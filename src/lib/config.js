@@ -1,6 +1,6 @@
 const config = {
   API_BASE_URL: import.meta.env.PROD 
-    ? 'https://your-backend-app.railway.app'  // We'll update this after Railway deployment
+    ? 'https://your-actual-railway-url.railway.app'  // Replace with your Railway URL
     : 'http://localhost:3001',
   
   isDevelopment: import.meta.env.DEV,

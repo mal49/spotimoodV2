@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { usePlaylist } from '../../context/PlaylistContext.jsx';
 import { supabase } from '../../lib/supabase.js';
 import { Loader2, Sparkles, User } from 'lucide-react';
+import { searchYouTubeMusic, generateMoodPlaylist } from '../../lib/api.js';
 
 export default function HomePage() {
     const { setGeneratedPlaylist, userHasStoredMood } = useApp();
@@ -78,21 +79,6 @@ export default function HomePage() {
             .slice(0, 2)
             .join('');
     }, [isAuthenticated, user, profile]);
-
-    // Function to search YouTube for songs
-    const searchYouTubeMusic = async (query, maxResults = 6) => {
-        try {
-            const response = await fetch(`http://localhost:3001/api/search-music?query=${encodeURIComponent(query)}`);
-            if (response.ok) {
-                const data = await response.json();
-                return data.videos.slice(0, maxResults);
-            }
-            return [];
-        } catch (error) {
-            console.error('Error searching YouTube:', error);
-            return [];
-        }
-    };
 
     // Load albums with real data
     const loadAlbumsWithRealData = useCallback(async () => {
@@ -205,37 +191,7 @@ export default function HomePage() {
         setGeneratedPlaylist(null);
 
         try {
-            const prompt = `Generate a list of 5-7 song recommendations (title and artist) that perfectly match a "${moodToUse}" mood. Provide the output JSON array of objects, each with 'title' and 'artist' keys. Also, provide a mock 'videoId' (a short random string like 'abc123def') for demonstration purposes.`;
-
-            const payload = {
-                prompt: prompt,
-                generationConfig: {
-                    temperature: 0.7,
-                    topK: 40,
-                    topP: 0.95,
-                    maxOutputTokens: 1024,
-                }
-            };
-
-            console.log('Sending request to server:', JSON.stringify(payload, null, 2));
-
-            const apiUrl = 'http://localhost:3001/api/generate-mood-playlist';
-
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify(payload)
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to generate playlist');
-            }
-
-            const playlist = await response.json();
+            const playlist = await generateMoodPlaylist(moodToUse);
             console.log('Received playlist from server:', playlist);
 
             if (!playlist || !playlist.songs || !Array.isArray(playlist.songs)) {
@@ -295,7 +251,7 @@ export default function HomePage() {
                                     mood_prompt: moodToUse,
                                     ai_response: {
                                         originalPlaylist: playlist,
-                                        prompt: prompt,
+                                        prompt: playlist.prompt,
                                         generatedAt: new Date().toISOString()
                                     }
                                 }]);
@@ -327,8 +283,8 @@ export default function HomePage() {
 
             navigate('/playlists');
         } catch (error) {
-            console.error("Error generating mood playlist:", error);
-            setMoodPlaylistError(`Failed to generate playlist: ${error.message}`);
+            console.error('Error generating playlist:', error);
+            setMoodPlaylistError(error.message);
         } finally {
             setIsLoadingMoodPlaylist(false);
         }
