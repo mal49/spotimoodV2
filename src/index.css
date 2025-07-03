@@ -13,6 +13,28 @@ body {
   font-family: 'Playfair Display', serif;
 }
 
+/* Mobile-specific utilities */
+@layer utilities {
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  
+  .touch-manipulation {
+    touch-action: manipulation;
+  }
+  
+  /* Improve tap targets on mobile */
+  @media (max-width: 640px) {
+    .touch-target {
+      min-height: 44px;
+      min-width: 44px;
+    }
+  }
+}
+
 /* Custom slider styles for Now Playing Bar */
 .slider::-webkit-slider-thumb {
   appearance: none;
@@ -39,6 +61,19 @@ body {
   cursor: pointer;
   border: 2px solid white;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Mobile-friendly slider styles */
+@media (max-width: 640px) {
+  .slider::-webkit-slider-thumb {
+    width: 20px;
+    height: 20px;
+  }
+  
+  .slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+  }
 }
 
 .slider-volume::-webkit-slider-thumb {
@@ -108,4 +143,17 @@ body {
 
 .search-pulse input {
   box-shadow: 0 0 20px rgba(168, 85, 247, 0.4) !important;
+}
+
+/* Mobile navigation improvements */
+@media (max-width: 1024px) {
+  .mobile-safe-area {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Improve scrolling on mobile */
+.smooth-scroll {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
 }

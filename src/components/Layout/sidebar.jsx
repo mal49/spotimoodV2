@@ -2,9 +2,9 @@ import React, { useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { usePlaylist } from '../../context/PlaylistContext.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
-import { Home, Search, Library, Crown, MessageCircle, Plus, Music, Sparkles } from 'lucide-react';
+import { Home, Search, Library, Crown, MessageCircle, Plus, Music, Sparkles, X } from 'lucide-react';
 
-export default function Sidebar() {
+export default function Sidebar({ isMobile = false, onClose }) {
     const location = useLocation();
     const { playlists, fetchPlaylists, isLoading } = usePlaylist();
     const { isAuthenticated } = useAuth();
@@ -18,6 +18,7 @@ export default function Sidebar() {
     const NavLink = ({ icon, text, to }) => (
         <Link 
             to={to}
+            onClick={isMobile ? onClose : undefined}
             className={`flex items-center space-x-4 p-3 rounded-md w-full text-left transition-colors ${
                 location.pathname === to ? 'text-text-light bg-dark-card' : 'text-text-medium hover:text-text-light hover:bg-dark-card'
             }`}
@@ -29,6 +30,26 @@ export default function Sidebar() {
 
     return(
         <div className='w-64 bg-black p-4 flex flex-col space-y-4 h-full pb-24'>
+            {/* Mobile Close Button */}
+            {isMobile && (
+                <div className="flex justify-between items-center mb-4">
+                    <div className="flex items-center space-x-2">
+                        <img 
+                            src="/spotimood-logo.jpeg" 
+                            alt="Spotimood" 
+                            className="w-8 h-8 rounded-lg"
+                        />
+                        <span className="text-text-light font-bold text-lg">Spotimood</span>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        className="p-2 rounded-full hover:bg-dark-hover transition-colors"
+                    >
+                        <X className="w-5 h-5 text-text-medium" />
+                    </button>
+                </div>
+            )}
+
             <nav className='space-y-2'>
                 <NavLink icon={<Home className='w-6 h-6' />} text="Home" to="/" />
                 <NavLink icon={<Search className='w-6 h-6' />} text="Search" to="/search" />
@@ -46,6 +67,7 @@ export default function Sidebar() {
                     {isAuthenticated && (
                         <Link 
                             to="/playlists"
+                            onClick={isMobile ? onClose : undefined}
                             className='text-text-medium hover:text-text-light transition-colors'
                             title="Create Playlist"
                         > 
@@ -59,6 +81,7 @@ export default function Sidebar() {
                         <p className="text-text-medium text-sm mb-3">Sign in to see your playlists</p>
                         <Link 
                             to="/auth"
+                            onClick={isMobile ? onClose : undefined}
                             className="text-primary-purple hover:text-purple-400 text-sm underline"
                         >
                             Sign in
@@ -75,6 +98,7 @@ export default function Sidebar() {
                         <p className="text-text-medium text-sm mb-3">No playlists yet</p>
                         <Link 
                             to="/playlists"
+                            onClick={isMobile ? onClose : undefined}
                             className="text-primary-purple hover:text-purple-400 text-sm underline"
                         >
                             Create your first playlist
@@ -87,6 +111,7 @@ export default function Sidebar() {
                                 <li key={playlist.id}>
                                     <Link 
                                         to={`/playlist/${playlist.id}`}
+                                        onClick={isMobile ? onClose : undefined}
                                         className={`flex items-center space-x-3 hover:text-text-light hover:bg-dark-card p-2 rounded-md w-full text-left transition-colors group ${
                                             location.pathname === `/playlist/${playlist.id}` ? 'text-text-light bg-dark-card' : ''
                                         }`}
@@ -118,6 +143,7 @@ export default function Sidebar() {
                             <div className="mt-3 pt-3 border-t border-dark-card">
                                 <Link 
                                     to="/playlists"
+                                    onClick={isMobile ? onClose : undefined}
                                     className="flex items-center justify-center space-x-2 text-text-medium hover:text-text-light p-2 rounded-md transition-colors text-sm"
                                 >
                                     <Plus className="w-4 h-4" />

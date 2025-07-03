@@ -68,8 +68,12 @@ export default function SearchBar() {
         document.addEventListener('keydown', handleKeyDown);
         document.addEventListener('keyup', handleKeyUp);
 
-        // Show shortcut hint initially
-        const timer = setTimeout(() => setShowShortcutHint(true), 2000);
+        // Show shortcut hint initially (only on desktop)
+        const timer = setTimeout(() => {
+            if (window.innerWidth >= 768) {
+                setShowShortcutHint(true);
+            }
+        }, 2000);
 
         return () => {
             document.removeEventListener('keydown', handleKeyDown);
@@ -93,8 +97,8 @@ export default function SearchBar() {
                         onChange={(e) => setQuery(e.target.value)}
                         onFocus={handleFocus}
                         onBlur={handleBlur}
-                        placeholder="Search for songs, artists, or albums..."
-                        className={`w-full bg-dark-card text-white px-4 py-3 rounded-full pl-12 pr-20 transition-all duration-300 focus:outline-none ${
+                        placeholder="Search songs, artists, albums..."
+                        className={`w-full bg-dark-card text-white px-3 py-2.5 sm:px-4 sm:py-3 rounded-full pl-10 sm:pl-12 pr-16 sm:pr-20 transition-all duration-300 focus:outline-none text-sm sm:text-base ${
                             isFocused 
                                 ? 'ring-2 ring-purple-500 bg-dark-hover shadow-lg' 
                                 : 'ring-1 ring-dark-hover hover:ring-purple-500/50'
@@ -102,14 +106,14 @@ export default function SearchBar() {
                     />
                     
                     {/* Search Icon */}
-                    <div className={`absolute left-4 top-1/2 transform -translate-y-1/2 transition-all duration-300 ${
+                    <div className={`absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 transition-all duration-300 ${
                         isFocused ? 'text-purple-400 scale-110' : 'text-gray-400'
                     }`}>
-                        <Search className="w-5 h-5" />
+                        <Search className="w-4 h-4 sm:w-5 sm:h-5" />
                     </div>
 
-                    {/* Keyboard Shortcut Indicator */}
-                    <div className={`absolute right-3 top-1/2 transform -translate-y-1/2 transition-all duration-300 ${
+                    {/* Keyboard Shortcut Indicator - Hidden on mobile */}
+                    <div className={`hidden md:block absolute right-3 top-1/2 transform -translate-y-1/2 transition-all duration-300 ${
                         isFocused ? 'opacity-0 scale-90' : 'opacity-70 hover:opacity-100'
                     } ${showShortcutHint ? 'animate-pulse' : ''}`}>
                         <div className="flex items-center space-x-1 bg-dark-bg/80 px-2 py-1 rounded-md border border-gray-600">
@@ -128,7 +132,7 @@ export default function SearchBar() {
                         <button
                             type="button"
                             onClick={() => setQuery('')}
-                            className="absolute right-16 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-all duration-200 hover:scale-110 opacity-0 animate-fade-in"
+                            className="absolute right-3 sm:right-16 md:right-16 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-all duration-200 hover:scale-110 opacity-0 animate-fade-in p-1"
                         >
                             <X className="w-4 h-4" />
                         </button>
@@ -151,8 +155,6 @@ export default function SearchBar() {
                     </div>
                 </div>
             )}
-
-
         </div>
     );
 } 

@@ -44,30 +44,35 @@ export default function AlbumCard({ imageUrl, title, artist, videoId, query }) {
     };
 
     return(
-        <div className='bg-dark-card rounded-lg p-4 transition-all duration-300 hover:bg-dark-hover group relative cursor-pointer' onClick={handlePlayAlbum}>
+        <div className='bg-dark-card rounded-lg p-3 sm:p-4 transition-all duration-300 hover:bg-dark-hover group relative cursor-pointer' onClick={handlePlayAlbum}>
             {/* Album/Item image */}
-            <img 
-            src={imageUrl}
-            alt={title}
-            className='w-full h-auto rounded-md shadow-lg mb-4'
-            onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/150x150/282828/FFFFFF?text=No+Image'; }}
-            />
-            {/* Title */}
-            <h4 className='font-bold text-text-light text-lg truncate'>{title}</h4>
-            {/* Artist */}
-            <p className='text-text-medium text-sm truncate'>{artist}</p>
+            <div className="relative">
+                <img 
+                    src={imageUrl}
+                    alt={title}
+                    className='w-full h-auto rounded-md shadow-lg mb-3 sm:mb-4'
+                    onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/150x150/282828/FFFFFF?text=No+Image'; }}
+                />
+                
+                {/* Play button overlay - always visible on mobile, hover on desktop */}
+                <button 
+                    className='absolute bottom-2 right-2 bg-primary-purple text-black p-2 sm:p-3 rounded-full shadow-lg 
+                               sm:opacity-0 sm:group-hover:opacity-100 sm:translate-y-4 sm:group-hover:translate-y-0 
+                               opacity-100 translate-y-0 transition-all duration-300 
+                               hover:bg-[#C879E6] active:scale-95'
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        handlePlayAlbum();
+                    }}
+                >
+                    <Play className='w-4 h-4 sm:w-5 sm:h-5' fill='currentColor' />
+                </button>
+            </div>
 
-            {/* Play button overlay hover */}
-            {/* Positioned absolutely, initially transparent and slides up, visible on group hover */}
-            <button 
-                className='absolute bottom-20 right-6 bg-primary-purple text-black p-3 rounded-full shadow-lg opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-300'
-                onClick={(e) => {
-                    e.stopPropagation();
-                    handlePlayAlbum();
-                }}
-            >
-                <Play className='w-5 h-5' fill='currentColor' />
-            </button>
+            {/* Title */}
+            <h4 className='font-bold text-text-light text-base sm:text-lg truncate'>{title}</h4>
+            {/* Artist */}
+            <p className='text-text-medium text-xs sm:text-sm truncate'>{artist}</p>
         </div>
     );
 }   

@@ -5,6 +5,14 @@ export default {
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
+    screens: {
+      'xs': '475px',
+      'sm': '640px',
+      'md': '768px',
+      'lg': '1024px',
+      'xl': '1280px',
+      '2xl': '1536px',
+    },
     extend: {
       colors: {
         'primary-purple': '#AA60C8',
@@ -21,6 +29,10 @@ export default {
       fontFamily: {
         inter: ['Inter', 'sans-serif'],
         'playfair-display': ['"Playfair Display"', 'serif'],
+      },
+      spacing: {
+        '18': '4.5rem',
+        '88': '22rem',
       },
     },
   },

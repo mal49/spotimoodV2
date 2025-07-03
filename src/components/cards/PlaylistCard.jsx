@@ -45,27 +45,34 @@ export default function PlaylistCard({imageUrl, title, description, songs, query
     };
 
     return(
-        <div className='bg-dark-card rounded-lg p-4 transition-all duration-300 hover:bg-dark-hover group relative cursor-pointer' onClick={handlePlayPlaylist}>
-            <img 
-            src={imageUrl} 
-            alt={title}
-            className='w-full h-auto rounded-md shadow-lg mb-4' 
-            onError={(e) => {e.target.onerror = null; e.target.src = 'https://placehold.co/150x150/AA60C8/FFFFFF?text=No+Image';}}
-            />
-            {/* title */}
-            <h4 className='font-bold text-text-light text-lg truncate'>{title}</h4>
-            {/* description */}
-            <p className='text-text-medium text-sm truncate'>{description}</p>
+        <div className='bg-dark-card rounded-lg p-3 sm:p-4 transition-all duration-300 hover:bg-dark-hover group relative cursor-pointer' onClick={handlePlayPlaylist}>
+            <div className="relative">
+                <img 
+                    src={imageUrl} 
+                    alt={title}
+                    className='w-full h-auto rounded-md shadow-lg mb-3 sm:mb-4' 
+                    onError={(e) => {e.target.onerror = null; e.target.src = 'https://placehold.co/150x150/AA60C8/FFFFFF?text=No+Image';}}
+                />
 
-            <button 
-                className='absolute bottom-20 right-6 bg-primary-purple text-black p-3 rounded-full shadow-lg opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-300'
-                onClick={(e) => {
-                    e.stopPropagation();
-                    handlePlayPlaylist();
-                }}
-            >
-                <Play className='w-5 h-5' fill='currentColor' />
-            </button>
+                {/* Play button overlay - always visible on mobile, hover on desktop */}
+                <button 
+                    className='absolute bottom-2 right-2 bg-primary-purple text-black p-2 sm:p-3 rounded-full shadow-lg 
+                               sm:opacity-0 sm:group-hover:opacity-100 sm:translate-y-4 sm:group-hover:translate-y-0 
+                               opacity-100 translate-y-0 transition-all duration-300 
+                               hover:bg-[#C879E6] active:scale-95'
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        handlePlayPlaylist();
+                    }}
+                >
+                    <Play className='w-4 h-4 sm:w-5 sm:h-5' fill='currentColor' />
+                </button>
+            </div>
+
+            {/* title */}
+            <h4 className='font-bold text-text-light text-base sm:text-lg truncate'>{title}</h4>
+            {/* description */}
+            <p className='text-text-medium text-xs sm:text-sm truncate'>{description}</p>
         </div>
     );   
 }

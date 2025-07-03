@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import SearchBar from '../SearchBar.jsx';
-import { User, LogOut, Settings, ChevronDown } from 'lucide-react';
+import { User, LogOut, Settings, ChevronDown, Menu } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useNavigate } from 'react-router-dom';
 
-export default function Header() {
+export default function Header({ onToggleMobileSidebar }) {
     const { user, profile, isAuthenticated, signOut } = useAuth();
     const [showUserMenu, setShowUserMenu] = useState(false);
     const [isSigningOut, setIsSigningOut] = useState(false);
@@ -68,21 +68,34 @@ export default function Header() {
     };
 
     return(
-        <div className="flex justify-center items-center mb-6 sticky top-0 bg-dark-bg z-10 py-4 px-4">
-            {/* search bar - centered */}
-            <div className="w-full max-w-2xl">
+        <div className="flex justify-between items-center mb-4 lg:mb-6 sticky top-0 bg-dark-bg z-10 py-3 lg:py-4 px-4">
+            {/* Mobile Hamburger Menu */}
+            <button
+                onClick={onToggleMobileSidebar}
+                className="lg:hidden p-2 rounded-md hover:bg-dark-hover transition-colors"
+            >
+                <Menu className="w-6 h-6 text-text-light" />
+            </button>
+
+            {/* Mobile Logo */}
+            <div className="lg:hidden flex items-center space-x-2">
+                <span className="text-text-light font-bold text-lg">Spotimood</span>
+            </div>
+
+            {/* Search bar - centered on desktop, hidden on mobile */}
+            <div className="hidden sm:block w-full max-w-2xl mx-auto">
                 <SearchBar />
             </div>
 
-            {/* user profile - positioned absolutely on the right */}
-            <div className="absolute right-4 top-1/2 transform -translate-y-1/2" ref={menuRef}>
+            {/* User profile */}
+            <div className="flex-shrink-0" ref={menuRef}>
                 {isAuthenticated ? (
                     <div className="relative">
                         <button 
                             onClick={() => setShowUserMenu(!showUserMenu)}
                             className="flex items-center space-x-2 bg-dark-card p-2 rounded-full hover:bg-dark-hover transition-colors group"
                         >
-                            <User className="w-6 h-6 text-text-light" />
+                            <User className="w-5 h-5 lg:w-6 lg:h-6 text-text-light" />
                             <span className="hidden md:block text-text-light text-sm font-medium max-w-32 truncate">
                                 {getUserDisplayName()}
                             </span>
@@ -138,11 +151,16 @@ export default function Header() {
                 ) : (
                     <button 
                         onClick={() => navigate('/auth')}
-                        className="bg-primary-purple text-text-light px-4 py-2 rounded-full hover:bg-[#C879E6] transition-colors font-medium"
+                        className="bg-primary-purple text-text-light px-3 py-2 lg:px-4 lg:py-2 rounded-full hover:bg-[#C879E6] transition-colors font-medium text-sm lg:text-base"
                     >
                         Sign In
                     </button>
                 )}
+            </div>
+
+            {/* Mobile Search Bar - Below header on mobile */}
+            <div className="sm:hidden fixed top-16 left-0 right-0 z-10 bg-dark-bg px-4 py-2 border-b border-dark-card">
+                <SearchBar />
             </div>
         </div>
     );

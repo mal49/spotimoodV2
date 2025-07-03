@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, LogIn, Music, Stars, Sparkles, User, LogOut, ChevronDown } from 'lucide-react';
+import { ArrowRight, LogIn, Music, Stars, Sparkles, User, LogOut, ChevronDown, Menu, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import React, { useState, useRef, useEffect } from 'react';
 
@@ -7,6 +7,7 @@ export default function LandingPage({onGetStarted}){
     const navigate = useNavigate();
     const { user, profile, isAuthenticated, loading: authLoading, signOut } = useAuth();
     const [showUserMenu, setShowUserMenu] = useState(false);
+    const [showMobileMenu, setShowMobileMenu] = useState(false);
     const [isSigningOut, setIsSigningOut] = useState(false);
     const menuRef = useRef(null);
 
@@ -76,6 +77,14 @@ export default function LandingPage({onGetStarted}){
         };
     }, []);
 
+    // Navigation items for reuse
+    const navItems = [
+        { label: 'Home', href: '/' },
+        { label: 'About', href: '/about' },
+        { label: 'Service', href: '/service' },
+        { label: 'Contact', href: '/contact' }
+    ];
+
     return(
         <div className='min-h-screen bg-gradient-to-br from-purple-50 via-white to-pink-50 relative overflow-hidden'>
             {/* Background decorative elements */}
@@ -86,97 +95,204 @@ export default function LandingPage({onGetStarted}){
             </div>
 
             {/* Navigation */}
-            <nav className='relative z-20 w-full flex justify-between items-center p-6 lg:px-12'>
-                <div className='flex items-center space-x-2'>
-                    <div className='w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg'></div>
-                    <span className='text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent'>
-                        spotimood
-                    </span>
-                </div>
-                
-                {/* Navigation items */}
-                <div className='flex items-center space-x-8'>
-                    <div className='hidden md:flex space-x-8'>
-                        <a href="#" className='text-gray-700 font-medium hover:text-purple-600 transition-colors duration-300 relative group'>
-                            Home
-                            <span className='absolute bottom-0 left-0 w-0 h-0.5 bg-purple-600 transition-all duration-300 group-hover:w-full'></span>
-                        </a>
-                        <a href="#" className='text-gray-700 font-medium hover:text-purple-600 transition-colors duration-300 relative group'>
-                            About
-                            <span className='absolute bottom-0 left-0 w-0 h-0.5 bg-purple-600 transition-all duration-300 group-hover:w-full'></span>
-                        </a>
-                        <a href="#" className='text-gray-700 font-medium hover:text-purple-600 transition-colors duration-300 relative group'>
-                            Service
-                            <span className='absolute bottom-0 left-0 w-0 h-0.5 bg-purple-600 transition-all duration-300 group-hover:w-full'></span>
-                        </a>
-                        <a href="#" className='text-gray-700 font-medium hover:text-purple-600 transition-colors duration-300 relative group'>
-                            Contact
-                            <span className='absolute bottom-0 left-0 w-0 h-0.5 bg-purple-600 transition-all duration-300 group-hover:w-full'></span>
-                        </a>
+            <nav className='relative z-20 w-full p-6 lg:px-12'>
+                <div className="flex justify-between items-center">
+                    <div className='flex items-center space-x-2'>
+                        <div className='w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg'></div>
+                        <span className='text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent'>
+                            spotimood
+                        </span>
                     </div>
-
-                    {/* User status indicator */}
-                    {authLoading ? (
-                        <div className="flex items-center space-x-2 text-gray-500">
-                            <div className="w-4 h-4 border-2 border-purple-300 border-t-purple-600 rounded-full animate-spin"></div>
+                    
+                    {/* Desktop Navigation */}
+                    <div className='hidden md:flex items-center space-x-8'>
+                        <div className='flex space-x-8'>
+                            {navItems.map((item) => (
+                                <button key={item.label} onClick={() => navigate(item.href)} className='text-gray-700 font-medium hover:text-purple-600 transition-colors duration-300 relative group'>
+                                    {item.label}
+                                    <span className='absolute bottom-0 left-0 w-0 h-0.5 bg-purple-600 transition-all duration-300 group-hover:w-full'></span>
+                                </button>
+                            ))}
                         </div>
-                    ) : isAuthenticated ? (
-                        <div className="relative" ref={menuRef}>
-                            <button
-                                onClick={() => setShowUserMenu(!showUserMenu)}
-                                className='flex items-center space-x-2 bg-white/60 backdrop-blur-sm px-3 py-2 rounded-full border border-purple-100 hover:bg-white/80 transition-colors group'
-                            >
-                                <User className='w-4 h-4 text-purple-600' />
-                                <span className='text-sm font-medium text-purple-700'>
-                                    {getUserDisplayName()}
-                                </span>
-                                <ChevronDown className={`w-3 h-3 text-purple-600 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
-                            </button>
 
-                            {/* Dropdown Menu */}
-                            {showUserMenu && (
-                                <div className="absolute right-0 mt-2 w-48 bg-white/95 backdrop-blur-sm rounded-lg shadow-xl border border-purple-100 z-50">
-                                    {/* User Info Section */}
-                                    <div className="px-4 py-3 border-b border-purple-100">
-                                        <div className="flex items-center space-x-3">
-                                            <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
-                                                <User className="w-4 h-4 text-white" />
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-gray-800 font-medium truncate text-sm">
-                                                    {getUserDisplayName()}
-                                                </p>
-                                                <p className="text-gray-500 text-xs truncate">
-                                                    {user?.email}
-                                                </p>
+                        {/* User status indicator */}
+                        {authLoading ? (
+                            <div className="flex items-center space-x-2 text-gray-500">
+                                <div className="w-4 h-4 border-2 border-purple-300 border-t-purple-600 rounded-full animate-spin"></div>
+                            </div>
+                        ) : isAuthenticated ? (
+                            <div className="relative" ref={menuRef}>
+                                <button
+                                    onClick={() => setShowUserMenu(!showUserMenu)}
+                                    className='flex items-center space-x-2 bg-white/60 backdrop-blur-sm px-3 py-2 rounded-full border border-purple-100 hover:bg-white/80 transition-colors group'
+                                >
+                                    <User className='w-4 h-4 text-purple-600' />
+                                    <span className='text-sm font-medium text-purple-700'>
+                                        {getUserDisplayName()}
+                                    </span>
+                                    <ChevronDown className={`w-3 h-3 text-purple-600 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
+                                </button>
+
+                                {/* Dropdown Menu */}
+                                {showUserMenu && (
+                                    <div className="absolute right-0 mt-2 w-48 bg-white/95 backdrop-blur-sm rounded-lg shadow-xl border border-purple-100 z-50">
+                                        {/* User Info Section */}
+                                        <div className="px-4 py-3 border-b border-purple-100">
+                                            <div className="flex items-center space-x-3">
+                                                <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
+                                                    <User className="w-4 h-4 text-white" />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-gray-800 font-medium truncate text-sm">
+                                                        {getUserDisplayName()}
+                                                    </p>
+                                                    <p className="text-gray-500 text-xs truncate">
+                                                        {user?.email}
+                                                    </p>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
 
-                                    {/* Menu Items */}
-                                    <div className="py-2">
-                                        <button
-                                            onClick={handleContinueToDashboard}
-                                            className="w-full flex items-center space-x-3 px-4 py-2 text-gray-700 hover:text-purple-600 hover:bg-purple-50 transition-colors text-sm"
-                                        >
-                                            <ArrowRight className="w-4 h-4" />
-                                            <span>Go to Dashboard</span>
-                                        </button>
-                                        
-                                        <button
-                                            onClick={handleSignOut}
-                                            disabled={isSigningOut}
-                                            className="w-full flex items-center space-x-3 px-4 py-2 text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                                        >
-                                            <LogOut className={`w-4 h-4 ${isSigningOut ? 'animate-spin' : ''}`} />
-                                            <span>{isSigningOut ? 'Signing Out...' : 'Sign Out'}</span>
-                                        </button>
+                                        {/* Menu Items */}
+                                        <div className="py-2">
+                                            <button
+                                                onClick={handleContinueToDashboard}
+                                                className="w-full flex items-center space-x-3 px-4 py-2 text-gray-700 hover:text-purple-600 hover:bg-purple-50 transition-colors text-sm"
+                                            >
+                                                <ArrowRight className="w-4 h-4" />
+                                                <span>Go to Dashboard</span>
+                                            </button>
+                                            
+                                            <button
+                                                onClick={handleSignOut}
+                                                disabled={isSigningOut}
+                                                className="w-full flex items-center space-x-3 px-4 py-2 text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                <LogOut className={`w-4 h-4 ${isSigningOut ? 'animate-spin' : ''}`} />
+                                                <span>{isSigningOut ? 'Signing Out...' : 'Sign Out'}</span>
+                                            </button>
+                                        </div>
                                     </div>
+                                )}
+                            </div>
+                        ) : null}
+                    </div>
+
+                    {/* Mobile Menu Button */}
+                    <div className="md:hidden flex items-center space-x-4">
+                        {/* User status for mobile */}
+                        {authLoading ? (
+                            <div className="w-4 h-4 border-2 border-purple-300 border-t-purple-600 rounded-full animate-spin"></div>
+                        ) : isAuthenticated ? (
+                            <div className="relative" ref={menuRef}>
+                                <button
+                                    onClick={() => setShowUserMenu(!showUserMenu)}
+                                    className='flex items-center space-x-1 bg-white/60 backdrop-blur-sm px-2 py-1.5 rounded-full border border-purple-100 hover:bg-white/80 transition-colors'
+                                >
+                                    <User className='w-4 h-4 text-purple-600' />
+                                    <span className='text-xs font-medium text-purple-700 max-w-20 truncate'>
+                                        {getUserDisplayName()}
+                                    </span>
+                                    <ChevronDown className={`w-3 h-3 text-purple-600 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
+                                </button>
+
+                                {/* Mobile User Dropdown */}
+                                {showUserMenu && (
+                                    <div className="absolute right-0 mt-2 w-48 bg-white/95 backdrop-blur-sm rounded-lg shadow-xl border border-purple-100 z-50">
+                                        <div className="px-4 py-3 border-b border-purple-100">
+                                            <div className="flex items-center space-x-3">
+                                                <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
+                                                    <User className="w-4 h-4 text-white" />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-gray-800 font-medium truncate text-sm">
+                                                        {getUserDisplayName()}
+                                                    </p>
+                                                    <p className="text-gray-500 text-xs truncate">
+                                                        {user?.email}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="py-2">
+                                            <button
+                                                onClick={handleContinueToDashboard}
+                                                className="w-full flex items-center space-x-3 px-4 py-2 text-gray-700 hover:text-purple-600 hover:bg-purple-50 transition-colors text-sm"
+                                            >
+                                                <ArrowRight className="w-4 h-4" />
+                                                <span>Go to Dashboard</span>
+                                            </button>
+                                            <button
+                                                onClick={handleSignOut}
+                                                disabled={isSigningOut}
+                                                className="w-full flex items-center space-x-3 px-4 py-2 text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                <LogOut className={`w-4 h-4 ${isSigningOut ? 'animate-spin' : ''}`} />
+                                                <span>{isSigningOut ? 'Signing Out...' : 'Sign Out'}</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ) : null}
+
+                        {/* Hamburger Menu Button */}
+                        <button
+                            onClick={() => setShowMobileMenu(!showMobileMenu)}
+                            className="p-2 rounded-lg bg-white/60 backdrop-blur-sm border border-purple-100 hover:bg-white/80 transition-colors"
+                        >
+                            {showMobileMenu ? (
+                                <X className="w-6 h-6 text-purple-600" />
+                            ) : (
+                                <Menu className="w-6 h-6 text-purple-600" />
+                            )}
+                        </button>
+                    </div>
+                </div>
+
+                {/* Mobile Menu Overlay */}
+                {showMobileMenu && (
+                    <div className="md:hidden absolute top-full left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-purple-100 shadow-lg z-40">
+                        <div className="p-4 space-y-4">
+                            {navItems.map((item) => (
+                                <button
+                                    key={item.label}
+                                    onClick={() => {
+                                        setShowMobileMenu(false);
+                                        navigate(item.href);
+                                    }}
+                                    className="block w-full text-left text-gray-700 font-medium hover:text-purple-600 transition-colors duration-300 py-2 px-4 rounded-lg hover:bg-purple-50"
+                                >
+                                    {item.label}
+                                </button>
+                            ))}
+                            
+                            {/* Mobile Auth Buttons */}
+                            {!isAuthenticated && (
+                                <div className="pt-4 border-t border-purple-100 space-y-3">
+                                    <button 
+                                        onClick={() => {
+                                            setShowMobileMenu(false);
+                                            handleGetStarted();
+                                        }} 
+                                        className='w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300'
+                                    >
+                                        Get Started
+                                    </button>
+                                    <button 
+                                        onClick={() => {
+                                            setShowMobileMenu(false);
+                                            navigate('/auth');
+                                        }} 
+                                        className='w-full bg-white text-purple-600 px-6 py-3 rounded-full font-semibold border-2 border-purple-200 hover:border-purple-400 transition-all duration-300'
+                                    >
+                                        Sign In
+                                    </button>
                                 </div>
                             )}
                         </div>
-                    ) : null}
-                </div>
+                    </div>
+                )}
             </nav>
 
             {/* Main Content */}

@@ -313,17 +313,17 @@ export default function HomePage() {
 
     return(
         <div className="min-h-screen bg-dark-bg text-text-light">
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
                 {/* User Profile Section */}
                 {isAuthenticated && (
-                    <div className="flex items-center space-x-4 mb-6">
+                    <div className="flex items-center space-x-3 sm:space-x-4 mb-4 sm:mb-6">
                         {/* Profile Picture */}
                         <div className="relative">
                             {getProfilePicture() ? (
                                 <img
                                     src={getProfilePicture()}
                                     alt="Profile"
-                                    className="w-16 h-16 rounded-full object-cover border-2 border-primary-purple shadow-lg"
+                                    className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover border-2 border-primary-purple shadow-lg"
                                     onError={(e) => {
                                         // Fallback to initials if image fails to load
                                         e.target.style.display = 'none';
@@ -333,18 +333,18 @@ export default function HomePage() {
                             ) : null}
                             {/* Fallback avatar with initials */}
                             <div 
-                                className={`w-16 h-16 rounded-full bg-gradient-to-br from-primary-purple to-[#C879E6] flex items-center justify-center text-white font-bold text-lg shadow-lg ${getProfilePicture() ? 'hidden' : 'flex'}`}
+                                className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-primary-purple to-[#C879E6] flex items-center justify-center text-white font-bold text-sm sm:text-lg shadow-lg ${getProfilePicture() ? 'hidden' : 'flex'}`}
                             >
                                 {getUserInitials()}
                             </div>
                             {/* Online indicator */}
-                            <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-400 rounded-full border-2 border-dark-bg"></div>
+                            <div className="absolute bottom-0 right-0 w-3 h-3 sm:w-4 sm:h-4 bg-green-400 rounded-full border-2 border-dark-bg"></div>
                         </div>
                         
                         {/* Greeting and Status */}
-                        <div className="flex-1">
-                            <h2 className='text-3xl font-bold'>{getPersonalizedGreeting()}</h2>
-                            <div className="text-sm text-text-medium mt-1">
+                        <div className="flex-1 min-w-0">
+                            <h2 className='text-xl sm:text-2xl lg:text-3xl font-bold truncate'>{getPersonalizedGreeting()}</h2>
+                            <div className="text-xs sm:text-sm text-text-medium mt-1 line-clamp-2">
                                 Welcome back! Your playlists and mood history are synced across all your devices.
                             </div>
                         </div>
@@ -353,16 +353,16 @@ export default function HomePage() {
 
                 {/* Greeting for non-authenticated users */}
                 {!isAuthenticated && (
-                    <h2 className='text-3xl font-bold mb-6'>{getPersonalizedGreeting()}</h2>
+                    <h2 className='text-xl sm:text-2xl lg:text-3xl font-bold mb-4 sm:mb-6'>{getPersonalizedGreeting()}</h2>
                 )}
 
                 {/* mood-based playlist section (Manual Input) */}
-                <div className='mb-8 bg-dark-card p-6 rounded-lg shadow-lg'>
-                    <h3 className='text-2xl font-bold mb-4 flex items-center gap-2'>
-                        <Sparkles className='w-6 h-6 text-purple-400' />
+                <div className='mb-6 sm:mb-8 bg-dark-card p-4 sm:p-6 rounded-lg shadow-lg'>
+                    <h3 className='text-lg sm:text-xl lg:text-2xl font-bold mb-3 sm:mb-4 flex items-center gap-2'>
+                        <Sparkles className='w-5 h-5 sm:w-6 sm:h-6 text-purple-400' />
                         Create a Mood Playlist {!isAuthenticated && '(Guest Mode)'}
                     </h3>
-                    <p className='text-text-medium mb-4'>
+                    <p className='text-text-medium mb-3 sm:mb-4 text-sm sm:text-base'>
                         Tell us how you're feeling, and Spotimood will suggest a playlist just for you.
                         {isAuthenticated 
                             ? ' Your generated playlist will be automatically saved to your library!' 
@@ -370,17 +370,17 @@ export default function HomePage() {
                         }
                     </p>
                     <textarea 
-                    className='w-full bg-dark-bg text-text-light rounded-md p-3 mb-4 focus:outline-none focus:ring-2 focus:ring-primary-purple' 
+                    className='w-full bg-dark-bg text-text-light rounded-md p-3 mb-3 sm:mb-4 focus:outline-none focus:ring-2 focus:ring-primary-purple text-sm sm:text-base' 
                     rows='3' 
                     placeholder="e.g., 'feeling melancholic and reflective', 'energetic and ready to dance', 'calm and focused'"
                     value={moodInput}
                     onChange={(e) => setMoodInput(e.target.value)}>
                     </textarea>
                     {moodPlaylistError && (
-                        <p className='text-red-400 text-sm mb-4'>{moodPlaylistError}</p>
+                        <p className='text-red-400 text-xs sm:text-sm mb-3 sm:mb-4'>{moodPlaylistError}</p>
                     )}
                     {!isAuthenticated ? (
-                        <p className='text-yellow-400 text-sm mb-4 flex items-center gap-2'>
+                        <p className='text-yellow-400 text-xs sm:text-sm mb-3 sm:mb-4 flex flex-wrap items-center gap-1 sm:gap-2'>
                             💡 Tip: <button 
                                 onClick={() => navigate('/auth')} 
                                 className="underline hover:text-primary-purple transition-colors"
@@ -389,18 +389,18 @@ export default function HomePage() {
                             </button> to save your mood playlists and get personalized recommendations!
                         </p>
                     ) : (
-                        <p className='text-green-400 text-sm mb-4 flex items-center gap-2'>
+                        <p className='text-green-400 text-xs sm:text-sm mb-3 sm:mb-4 flex flex-wrap items-center gap-1 sm:gap-2'>
                             ✨ Your generated playlist will be automatically saved to your library and synchronized across all your devices!
                         </p>
                     )}
                     <button
                     onClick={() => generatePlaylist(moodInput, false)}
-                    className='bg-primary-purple text-text-light px-6 py-3 rounded-full font-bold text-lg flex items-center justify-center space-x-2 hover:bg-[#C879E6] transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full md:w-auto'
+                    className='bg-primary-purple text-text-light px-4 py-2.5 sm:px-6 sm:py-3 rounded-full font-bold text-sm sm:text-base lg:text-lg flex items-center justify-center space-x-2 hover:bg-[#C879E6] transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full md:w-auto'
                     disabled={isLoadingMoodPlaylist}
                     >
                         {isLoadingMoodPlaylist ? (
                             <>
-                                <Loader2 className='animate-spin h-5 w-5 text-text-light' />
+                                <Loader2 className='animate-spin h-4 w-4 sm:h-5 sm:w-5 text-text-light' />
                                 <span>Generating...</span>
                             </>
                         ) : 'Generate Mood Playlist'}
@@ -408,11 +408,11 @@ export default function HomePage() {
                 </div>
                 
                 {/* Recently Played Section */}
-                <div className="mb-8">
+                <div className="mb-6 sm:mb-8">
                     {isLoadingAlbums ? (
-                        <div className="flex justify-center items-center h-32">
-                            <Loader2 className="animate-spin h-8 w-8 text-primary-purple" />
-                            <span className="ml-2 text-text-medium">Loading albums...</span>
+                        <div className="flex justify-center items-center h-24 sm:h-32">
+                            <Loader2 className="animate-spin h-6 w-6 sm:h-8 sm:w-8 text-primary-purple" />
+                            <span className="ml-2 text-text-medium text-sm sm:text-base">Loading albums...</span>
                         </div>
                     ) : (
                         <SectionCarousel title='Recently Played' items={albumCard} type='album' />
@@ -420,11 +420,11 @@ export default function HomePage() {
                 </div>
 
                 {/* Made for You Section */}
-                <div className="mb-8">
+                <div className="mb-6 sm:mb-8">
                     {isLoadingPlaylists ? (
-                        <div className="flex justify-center items-center h-32">
-                            <Loader2 className="animate-spin h-8 w-8 text-primary-purple" />
-                            <span className="ml-2 text-text-medium">Loading playlists...</span>
+                        <div className="flex justify-center items-center h-24 sm:h-32">
+                            <Loader2 className="animate-spin h-6 w-6 sm:h-8 sm:w-8 text-primary-purple" />
+                            <span className="ml-2 text-text-medium text-sm sm:text-base">Loading playlists...</span>
                         </div>
                     ) : (
                         <SectionCarousel 
