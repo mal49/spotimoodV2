@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import config from '../lib/config';
 
 const YouTubePlayer = ({ videoId, onReady, onStateChange }) => {
   const playerRef = useRef(null);
@@ -30,7 +31,8 @@ const YouTubePlayer = ({ videoId, onReady, onStateChange }) => {
     }
 
     // Prevent loading multiple scripts
-    if (document.querySelector('script[src*="youtube.com/iframe_api"]')) {
+    const existingScript = document.querySelector('script[src*="youtube.com/iframe_api"]');
+    if (existingScript) {
       // Script is already loading, wait for it
       const checkInterval = setInterval(() => {
         if (checkApiReady()) {
@@ -58,7 +60,7 @@ const YouTubePlayer = ({ videoId, onReady, onStateChange }) => {
 
     // Load the YouTube IFrame API
     const tag = document.createElement('script');
-    tag.src = 'https://www.youtube.com/iframe_api';
+    tag.src = config.youtube.iframeApiUrl;
     tag.async = true;
     tag.onerror = () => {
       console.error('Failed to load YouTube API script');
@@ -150,11 +152,11 @@ const YouTubePlayer = ({ videoId, onReady, onStateChange }) => {
           fs: 0,
           modestbranding: 1,
           rel: 0,
-          iv_load_policy: 3, // Hide annotations
-          cc_load_policy: 0, // Hide captions by default
-          showinfo: 0, // Hide video info
-          playsinline: 1, // Play inline on mobile
-          origin: window.location.origin, // Set origin for security
+          iv_load_policy: 3,
+          cc_load_policy: 0,
+          showinfo: 0,
+          playsinline: 1,
+          origin: config.youtube.embedOrigin,
         },
         events: {
           onReady: (event) => {
@@ -203,9 +205,6 @@ const YouTubePlayer = ({ videoId, onReady, onStateChange }) => {
                 shouldRetry = false;
                 break;
               case 101:
-                errorMsg = 'Video owner does not allow embedding';
-                shouldRetry = false;
-                break;
               case 150:
                 errorMsg = 'Video owner does not allow embedding';
                 shouldRetry = false;
@@ -238,6 +237,7 @@ const YouTubePlayer = ({ videoId, onReady, onStateChange }) => {
     } catch (error) {
       console.error('Error creating YouTube player:', error);
       setIsPlayerReady(false);
+      setHasError(true);
       setErrorMessage('Failed to create player instance');
       
       // Retry logic for player creation errors
@@ -247,48 +247,23 @@ const YouTubePlayer = ({ videoId, onReady, onStateChange }) => {
         setTimeout(() => {
           createPlayer();
         }, retryDelay);
-      } else {
-        setHasError(true);
       }
     }
-  }, [isApiReady, videoId, onReady, onStateChange, hasError]);
+  }, [isApiReady, videoId, hasError, onReady, onStateChange]);
 
+  // Create player when API is ready and video ID changes
   useEffect(() => {
-    createPlayer();
-
-    return () => {
-      // Cleanup on dependency change
-      if (playerRef.current && typeof playerRef.current.destroy === 'function') {
-        try {
-          playerRef.current.destroy();
-        } catch (error) {
-          console.warn('Error destroying player in cleanup:', error);
-        }
-        playerRef.current = null;
-      }
-    };
-  }, [createPlayer]);
-
-  // Reset error state when videoId changes
-  useEffect(() => {
-    if (hasError && videoId) {
-      setHasError(false);
-      setErrorMessage('');
-      retryCountRef.current = 0;
+    if (isApiReady && videoId) {
+      createPlayer();
     }
-  }, [videoId, hasError]);
+  }, [isApiReady, videoId, createPlayer]);
 
+  // Render player container and error message if any
   return (
-    <div className="youtube-player-container">
-      <div 
-        ref={containerRef} 
-        className="hidden" 
-        id={`youtube-player-${videoId || 'default'}`}
-      />
-      {hasError && process.env.NODE_ENV === 'development' && (
-        <div className="text-red-500 text-xs p-2 bg-red-50 rounded">
-          YouTube Player Error: {errorMessage}
-        </div>
+    <div>
+      <div ref={containerRef} />
+      {hasError && errorMessage && (
+        <div className="text-red-500 text-sm mt-2">{errorMessage}</div>
       )}
     </div>
   );
