@@ -5,8 +5,8 @@ import { useApp } from '../../context/AppContext.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { usePlaylist } from '../../context/PlaylistContext.jsx';
 import { supabase } from '../../lib/supabase.js';
-import { Loader2, Sparkles, User } from 'lucide-react';
-import { searchYouTubeMusic, generateMoodPlaylist } from '../../lib/api.js';
+import { Loader2, Sparkles, User, AlertTriangle, Clock } from 'lucide-react';
+import { searchYouTubeMusic, generateMoodPlaylist, loadAlbumsWithCaching, loadPlaylistsWithCaching } from '../../lib/api.js';
 
 export default function HomePage() {
     const { setGeneratedPlaylist, userHasStoredMood } = useApp();
@@ -22,6 +22,11 @@ export default function HomePage() {
     const [playlistCard, setPlaylistCard] = useState([]);
     const [isLoadingAlbums, setIsLoadingAlbums] = useState(true);
     const [isLoadingPlaylists, setIsLoadingPlaylists] = useState(true);
+    
+    // Rate limiting and error states
+    const [apiQuotaExceeded, setApiQuotaExceeded] = useState(false);
+    const [rateLimitError, setRateLimitError] = useState(null);
+    const [lastApiCallTime, setLastApiCallTime] = useState(null);
 
     // Helper function to get personalized greeting
     const getPersonalizedGreeting = useCallback(() => {
@@ -80,95 +85,96 @@ export default function HomePage() {
             .join('');
     }, [isAuthenticated, user, profile]);
 
-    // Load albums with real data
+    // Load albums with caching and better error handling
     const loadAlbumsWithRealData = useCallback(async () => {
         setIsLoadingAlbums(true);
+        setRateLimitError(null);
+        
         try {
-            const albumQueries = [
-                'best pop songs 2024',
-                'top rock classics',
-                'greatest hits collection',
-                'chill indie music',
-                'best rap albums',
-                'electronic dance music'
-            ];
-
-            const albumsData = await Promise.all(
-                albumQueries.map(async (query, index) => {
-                    const videos = await searchYouTubeMusic(query, 1);
-                    const video = videos[0];
-                    
-                    if (video) {
-                        return {
-                            id: index + 1,
-                            title: video.title.length > 30 ? video.title.substring(0, 30) + '...' : video.title,
-                            artist: video.channelTitle,
-                            imageUrl: video.thumbnail,
-                            videoId: video.id,
-                            query: query // Store the query for potential expansion
-                        };
-                    }
-                    
-                    // Fallback placeholder if no video found
-                    return {
-                        id: index + 1,
-                        title: `Album ${index + 1}`,
-                        artist: 'Various Artists',
-                        imageUrl: 'https://placehold.co/150x150/282828/FFFFFF?text=Album',
-                        videoId: null,
-                        query: query
-                    };
-                })
-            );
-
+            const albumsData = await loadAlbumsWithCaching();
             setAlbumCard(albumsData);
+            setLastApiCallTime(Date.now());
         } catch (error) {
             console.error('Error loading albums:', error);
+            
+            // Handle rate limiting errors
+            if (error.message === 'RATE_LIMITED') {
+                setRateLimitError('Rate limit reached. Please wait a moment before refreshing.');
+            } else if (error.message === 'QUOTA_EXCEEDED') {
+                setApiQuotaExceeded(true);
+                setRateLimitError('Daily API limit reached. Content will refresh tomorrow.');
+            }
+            
+            // Set fallback data in case of error
+            setAlbumCard([
+                {
+                    id: 1,
+                    title: 'Today\'s Top Hits',
+                    artist: 'Various Artists',
+                    imageUrl: 'https://placehold.co/150x150/282828/FFFFFF?text=Top+Hits',
+                    videoId: null,
+                    query: 'top hits 2024'
+                },
+                {
+                    id: 2,
+                    title: 'Rock Classics',
+                    artist: 'Various Artists',
+                    imageUrl: 'https://placehold.co/150x150/282828/FFFFFF?text=Rock',
+                    videoId: null,
+                    query: 'rock classics'
+                },
+                {
+                    id: 3,
+                    title: 'Chill Vibes',
+                    artist: 'Various Artists',
+                    imageUrl: 'https://placehold.co/150x150/282828/FFFFFF?text=Chill',
+                    videoId: null,
+                    query: 'chill music'
+                }
+            ]);
         } finally {
             setIsLoadingAlbums(false);
         }
     }, []);
 
-    // Load playlists with real data
+    // Load playlists with caching and better error handling
     const loadPlaylistsWithRealData = useCallback(async () => {
         setIsLoadingPlaylists(true);
+        
         try {
-            const playlistQueries = [
-                { query: 'daily mix popular songs', title: 'Daily Mix 1', description: 'Popular tracks for you' },
-                { query: 'discover weekly new music', title: 'Discover Weekly', description: 'New songs for you' },
-                { query: 'workout music high energy', title: 'Workout Jams', description: 'High energy tracks' },
-                { query: 'relaxing instrumental music', title: 'Relaxing Instrumentals', description: 'Focus and calm' }
-            ];
-
-            const playlistsData = await Promise.all(
-                playlistQueries.map(async (playlistInfo, index) => {
-                    const videos = await searchYouTubeMusic(playlistInfo.query, 4);
-                    
-                    // Use the first video's thumbnail, or fallback
-                    const imageUrl = videos.length > 0 
-                        ? videos[0].thumbnail 
-                        : 'https://placehold.co/150x150/AA60C8/FFFFFF?text=Mix';
-
-                    return {
-                        id: index + 1,
-                        title: playlistInfo.title,
-                        description: playlistInfo.description,
-                        imageUrl: imageUrl,
-                        songs: videos.map(video => ({
-                            id: video.id,
-                            title: video.title,
-                            artist: video.channelTitle,
-                            thumbnail: video.thumbnail,
-                            videoId: video.id
-                        })),
-                        query: playlistInfo.query // Store for potential refresh
-                    };
-                })
-            );
-
+            const playlistsData = await loadPlaylistsWithCaching();
             setPlaylistCard(playlistsData);
+            setLastApiCallTime(Date.now());
         } catch (error) {
             console.error('Error loading playlists:', error);
+            
+            // Handle rate limiting errors
+            if (error.message === 'RATE_LIMITED') {
+                setRateLimitError('Rate limit reached. Please wait a moment before refreshing.');
+            } else if (error.message === 'QUOTA_EXCEEDED') {
+                setApiQuotaExceeded(true);
+                setRateLimitError('Daily API limit reached. Content will refresh tomorrow.');
+            }
+            
+            // Set fallback data in case of error
+            setPlaylistCard([
+                {
+                    id: 1,
+                    title: 'Daily Mix',
+                    description: 'Your daily music mix',
+                    imageUrl: 'https://placehold.co/150x150/AA60C8/FFFFFF?text=Daily+Mix',
+                    songs: [],
+                    query: 'daily mix'
+                },
+                {
+                    id: 2,
+                    title: 'Discover Weekly',
+                    description: 'Fresh music for you',
+                    imageUrl: 'https://placehold.co/150x150/AA60C8/FFFFFF?text=Discover',
+                    songs: [],
+                    query: 'discover weekly'
+                }
+            ]);
         } finally {
             setIsLoadingPlaylists(false);
         }
@@ -314,6 +320,34 @@ export default function HomePage() {
     return(
         <div className="min-h-screen bg-dark-bg text-text-light">
             <div className="p-4 sm:p-6">
+                {/* Rate Limiting Notification */}
+                {rateLimitError && (
+                    <div className={`mb-4 p-4 rounded-lg border-l-4 ${
+                        apiQuotaExceeded 
+                            ? 'bg-red-900/20 border-red-500 text-red-100' 
+                            : 'bg-yellow-900/20 border-yellow-500 text-yellow-100'
+                    }`}>
+                        <div className="flex items-center space-x-2">
+                            {apiQuotaExceeded ? (
+                                <AlertTriangle className="h-5 w-5 text-red-400" />
+                            ) : (
+                                <Clock className="h-5 w-5 text-yellow-400" />
+                            )}
+                            <div>
+                                <p className="font-medium">
+                                    {apiQuotaExceeded ? 'API Quota Exceeded' : 'Rate Limit Reached'}
+                                </p>
+                                <p className="text-sm mt-1">{rateLimitError}</p>
+                                {lastApiCallTime && (
+                                    <p className="text-xs mt-1 opacity-75">
+                                        Last updated: {new Date(lastApiCallTime).toLocaleTimeString()}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+                
                 {/* User Profile Section */}
                 {isAuthenticated && (
                     <div className="flex items-center space-x-3 sm:space-x-4 mb-4 sm:mb-6">

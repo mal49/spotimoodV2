@@ -48,11 +48,49 @@ const youtube = google.youtube({
 // Rate limiting for YouTube API (quota management)
 const rateLimitMap = new Map();
 const RATE_LIMIT_WINDOW = 60000; // 1 minute
-const MAX_REQUESTS_PER_MINUTE = 100; // Conservative limit
+const MAX_REQUESTS_PER_MINUTE = 50; // More conservative limit
+
+// Global quota tracking
+let globalQuotaState = {
+    quotaExceeded: false,
+    resetTime: null,
+    dailyQuotaUsed: 0,
+    lastResetDate: new Date().toDateString()
+};
+
+// Exponential backoff utility
+const exponentialBackoff = (attempt) => {
+    return Math.min(1000 * Math.pow(2, attempt), 30000); // Max 30 seconds
+};
+
+// Check if we need to reset daily quota
+const checkDailyQuotaReset = () => {
+    const today = new Date().toDateString();
+    if (globalQuotaState.lastResetDate !== today) {
+        globalQuotaState = {
+            quotaExceeded: false,
+            resetTime: null,
+            dailyQuotaUsed: 0,
+            lastResetDate: today
+        };
+        console.log('Daily quota reset');
+    }
+};
 
 const checkRateLimit = (req, res, next) => {
     const clientId = req.ip;
     const now = Date.now();
+    
+    // Check daily quota first
+    checkDailyQuotaReset();
+    
+    if (globalQuotaState.quotaExceeded && now < globalQuotaState.resetTime) {
+        return res.status(429).json({
+            error: 'YouTube API quota exceeded',
+            code: 'QUOTA_EXCEEDED',
+            retryAfter: Math.ceil((globalQuotaState.resetTime - now) / 1000)
+        });
+    }
     
     if (!rateLimitMap.has(clientId)) {
         rateLimitMap.set(clientId, { requests: 1, resetTime: now + RATE_LIMIT_WINDOW });
@@ -69,6 +107,7 @@ const checkRateLimit = (req, res, next) => {
     if (clientData.requests >= MAX_REQUESTS_PER_MINUTE) {
         return res.status(429).json({
             error: 'Rate limit exceeded',
+            code: 'RATE_LIMITED',
             retryAfter: Math.ceil((clientData.resetTime - now) / 1000)
         });
     }
@@ -116,6 +155,9 @@ app.get('/api/search-music', async (req, res) => {
 
         const response = await youtube.search.list(searchParams);
 
+        // Increment quota usage
+        globalQuotaState.dailyQuotaUsed += 1;
+        
         // Transform response according to application needs
         const videos = response.data.items?.map(item => ({
             id: item.id.videoId,
@@ -130,7 +172,8 @@ app.get('/api/search-music', async (req, res) => {
             nextPageToken: response.data.nextPageToken,
             prevPageToken: response.data.prevPageToken,
             totalResults: response.data.pageInfo?.totalResults || 0,
-            resultsPerPage: resultsCount
+            resultsPerPage: resultsCount,
+            quotaUsed: globalQuotaState.dailyQuotaUsed // Include quota info for debugging
         });
 
     } catch (error) {
@@ -142,10 +185,17 @@ app.get('/api/search-music', async (req, res) => {
             
             // Handle quota exceeded error
             if (status === 403 && data.error?.errors?.[0]?.reason === 'quotaExceeded') {
+                // Mark quota as exceeded globally
+                globalQuotaState.quotaExceeded = true;
+                globalQuotaState.resetTime = Date.now() + (24 * 60 * 60 * 1000); // Reset in 24 hours
+                
+                console.error('YouTube API quota exceeded. Quota will reset in 24 hours.');
+                
                 return res.status(429).json({
                     error: 'YouTube API quota exceeded',
                     code: 'QUOTA_EXCEEDED',
-                    retryAfter: 3600 // 1 hour
+                    retryAfter: 86400, // 24 hours
+                    quotaUsed: globalQuotaState.dailyQuotaUsed
                 });
             }
             
