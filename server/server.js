@@ -19,7 +19,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cors({
     origin: process.env.NODE_ENV === 'production' 
         ? [
-            'https://spotimood-alpha.vercel.app/',  // We'll update this after Vercel deployment
+            'https://spotimood-green.vercel.app/',  // We'll update this after Vercel deployment
             process.env.FRONTEND_URL, // Alternative domain
             /\.vercel\.app$/  // Allow any Vercel subdomain
           ] 
