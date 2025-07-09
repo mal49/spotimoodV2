@@ -37,13 +37,93 @@ app.use((req, res, next) => {
 //API key retrieval
 //Securely loaded from the .env file
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
 
-// Initialize YouTube API with proper configuration
-const youtube = google.youtube({
-    version: 'v3',
-    auth: YOUTUBE_API_KEY
+// Multiple YouTube API keys for rotation
+const YOUTUBE_API_KEYS = [
+    process.env.YOUTUBE_API_KEY,
+    process.env.YOUTUBE_API_KEY_2,
+    process.env.YOUTUBE_API_KEY_3
+].filter(key => key); // Remove any undefined keys
+
+// Remove alternative API keys and integrations
+// const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID;
+// const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET;
+// const LASTFM_API_KEY = process.env.LASTFM_API_KEY;
+// const MUSIXMATCH_API_KEY = process.env.MUSIXMATCH_API_KEY;
+
+// Remove Spotify token management, getSpotifyToken, searchSpotifyMusic, searchLastFmMusic, and any fallback logic to these APIs
+
+let currentKeyIndex = 0;
+let keyUsageMap = new Map();
+
+// Initialize key usage tracking
+YOUTUBE_API_KEYS.forEach((key, index) => {
+    keyUsageMap.set(index, {
+        quotaExceeded: false,
+        resetTime: null,
+        dailyQuotaUsed: 0,
+        lastResetDate: new Date().toDateString()
+    });
 });
+
+// Function to get next available API key
+const getNextAvailableKey = () => {
+    const today = new Date().toDateString();
+    
+    // Reset daily quotas if needed
+    keyUsageMap.forEach((usage, index) => {
+        if (usage.lastResetDate !== today) {
+            keyUsageMap.set(index, {
+                quotaExceeded: false,
+                resetTime: null,
+                dailyQuotaUsed: 0,
+                lastResetDate: today
+            });
+        }
+    });
+    
+    // Try to find a key that hasn't exceeded quota
+    for (let i = 0; i < YOUTUBE_API_KEYS.length; i++) {
+        const keyIndex = (currentKeyIndex + i) % YOUTUBE_API_KEYS.length;
+        const usage = keyUsageMap.get(keyIndex);
+        
+        if (!usage.quotaExceeded || Date.now() >= usage.resetTime) {
+            currentKeyIndex = keyIndex;
+            return YOUTUBE_API_KEYS[keyIndex];
+        }
+    }
+    
+    // If all keys are exhausted, return the first one
+    currentKeyIndex = 0;
+    return YOUTUBE_API_KEYS[0];
+};
+
+// Function to mark a key as quota exceeded
+const markKeyQuotaExceeded = (keyIndex) => {
+    const usage = keyUsageMap.get(keyIndex);
+    if (usage) {
+        usage.quotaExceeded = true;
+        usage.resetTime = Date.now() + (24 * 60 * 60 * 1000); // Reset in 24 hours
+        keyUsageMap.set(keyIndex, usage);
+    }
+};
+
+// Function to increment key usage
+const incrementKeyUsage = (keyIndex) => {
+    const usage = keyUsageMap.get(keyIndex);
+    if (usage) {
+        usage.dailyQuotaUsed += 1;
+        keyUsageMap.set(keyIndex, usage);
+    }
+};
+
+// Initialize YouTube API with key rotation
+const createYouTubeAPI = (apiKey) => {
+    return google.youtube({
+        version: 'v3',
+        auth: apiKey
+    });
+};
 
 // Rate limiting for YouTube API (quota management)
 const rateLimitMap = new Map();
@@ -153,10 +233,10 @@ app.get('/api/search-music', async (req, res) => {
             searchParams.pageToken = pageToken;
         }
 
-        const response = await youtube.search.list(searchParams);
+        const response = await createYouTubeAPI(getNextAvailableKey()).search.list(searchParams);
 
         // Increment quota usage
-        globalQuotaState.dailyQuotaUsed += 1;
+        incrementKeyUsage(currentKeyIndex);
         
         // Transform response according to application needs
         const videos = response.data.items?.map(item => ({
@@ -173,7 +253,7 @@ app.get('/api/search-music', async (req, res) => {
             prevPageToken: response.data.prevPageToken,
             totalResults: response.data.pageInfo?.totalResults || 0,
             resultsPerPage: resultsCount,
-            quotaUsed: globalQuotaState.dailyQuotaUsed // Include quota info for debugging
+            quotaUsed: keyUsageMap.get(currentKeyIndex).dailyQuotaUsed // Include quota info for debugging
         });
 
     } catch (error) {
@@ -185,17 +265,14 @@ app.get('/api/search-music', async (req, res) => {
             
             // Handle quota exceeded error
             if (status === 403 && data.error?.errors?.[0]?.reason === 'quotaExceeded') {
-                // Mark quota as exceeded globally
-                globalQuotaState.quotaExceeded = true;
-                globalQuotaState.resetTime = Date.now() + (24 * 60 * 60 * 1000); // Reset in 24 hours
+                // Mark current key as quota exceeded
+                markKeyQuotaExceeded(currentKeyIndex);
                 
-                console.error('YouTube API quota exceeded. Quota will reset in 24 hours.');
-                
+                // In the YouTube quota exceeded logic, just return the quota exceeded error, do not try alternatives or fallback
                 return res.status(429).json({
                     error: 'YouTube API quota exceeded',
                     code: 'QUOTA_EXCEEDED',
-                    retryAfter: 86400, // 24 hours
-                    quotaUsed: globalQuotaState.dailyQuotaUsed
+                    retryAfter: Math.ceil((Date.now() + (24 * 60 * 60 * 1000) - Date.now()) / 1000) // Show retry after 24 hours
                 });
             }
             
@@ -235,11 +312,14 @@ app.get('/api/video/:videoId', async (req, res) => {
     }
 
     try {
-        const response = await youtube.videos.list({
+        const response = await createYouTubeAPI(getNextAvailableKey()).videos.list({
             part: 'snippet,contentDetails,status,statistics',
             id: videoId,
             fields: 'items(id,snippet(title,description,channelTitle,thumbnails/high/url,publishedAt),contentDetails/duration,status(embeddable,privacyStatus),statistics(viewCount,likeCount))'
         });
+
+        // Increment quota usage
+        incrementKeyUsage(currentKeyIndex);
 
         if (!response.data.items || response.data.items.length === 0) {
             console.log(`Video not found: ${videoId}`);
@@ -399,7 +479,7 @@ app.post('/api/generate-mood-playlist', async (req, res) => {
                     const searchQuery = `${song.title} ${song.artist}`.trim();
                     
                     // Improved YouTube search with better parameters
-                    const searchResponse = await youtube.search.list({
+                    const searchResponse = await createYouTubeAPI(getNextAvailableKey()).search.list({
                         part: 'snippet',
                         q: searchQuery,
                         type: 'video',
@@ -585,10 +665,7 @@ app.listen(PORT, () => {
     if (!GEMINI_API_KEY) {
         console.warn('⚠️  GEMINI_API_KEY is not set in .env file');
     }
-    if (!YOUTUBE_API_KEY) {
-        console.warn('⚠️  YOUTUBE_API_KEY is not set in .env file');
-    }
-    if (GEMINI_API_KEY && YOUTUBE_API_KEY) {
+    if (YOUTUBE_API_KEYS.length > 0) {
         console.log('✅ All API keys loaded successfully');
     }
 });

@@ -60,9 +60,17 @@ Spotimood combines your current emotional state with intelligent music curation 
   - Auto-generated REST APIs
 
 ### **APIs & Services**
-- **YouTube Data API v3** - Music search and metadata
+- **YouTube Data API v3** - Primary music source with video playback
+- **Spotify Web API** - High-quality music metadata and previews
+- **Last.fm API** - Music discovery and recommendations
 - **Google Gemini AI** - Mood analysis and playlist generation
 - **Supabase Auth** - Authentication flows
+
+### **Rate Limit Solutions**
+- **API Key Rotation** - Multiple YouTube API keys with automatic switching
+- **Fallback System** - Seamless fallback to alternative APIs
+- **Intelligent Caching** - 5-minute cache to reduce API calls
+- **Quota Management** - Real-time tracking and optimization
 
 ### **State Management**
 - **React Context API** - Global state management
@@ -107,18 +115,33 @@ cd ..
 3. Go to **Settings** → **API** in your Supabase dashboard
 4. Copy your **Project URL** and **anon public** key
 
-##### 2.2 **YouTube Data API Setup**
+##### 2.2 **YouTube Data API Setup (Multiple Keys Recommended)**
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project or select an existing one
-3. Enable the **YouTube Data API v3**:
+2. Create multiple projects (recommended: 3-5 projects for rotation)
+3. For each project, enable the **YouTube Data API v3**:
    - Go to **APIs & Services** → **Library**
    - Search for "YouTube Data API v3" and enable it
-4. Create credentials:
+4. Create credentials for each project:
    - Go to **APIs & Services** → **Credentials**
    - Click **Create Credentials** → **API Key**
    - Copy the generated API key
+5. **Set quota limits** (optional but recommended):
+   - Go to **APIs & Services** → **Quotas**
+   - Set daily quota to 10,000 units per project
 
-##### 2.3 **Google Gemini AI Setup**
+##### 2.3 **Spotify Web API Setup (Alternative Source)**
+1. Go to [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
+2. Create a new app
+3. Get your **Client ID** and **Client Secret**
+4. Add redirect URIs if needed for OAuth
+
+##### 2.4 **Last.fm API Setup (Alternative Source)**
+1. Go to [Last.fm API](https://www.last.fm/api)
+2. Create an account
+3. Create an API application
+4. Get your **API Key**
+
+##### 2.5 **Google Gemini AI Setup**
 1. Go to [Google AI Studio](https://makersuite.google.com/app/apikey)
 2. Click **Create API Key**
 3. Copy the generated API key
@@ -141,8 +164,19 @@ VITE_DEV_MODE=true
 Create a `.env` file in the `server` directory:
 
 ```env
-# API Keys
-YOUTUBE_API_KEY=your-youtube-api-key
+# YouTube Data API Keys (Multiple for rotation)
+YOUTUBE_API_KEY=your-youtube-api-key-1
+YOUTUBE_API_KEY_2=your-youtube-api-key-2
+YOUTUBE_API_KEY_3=your-youtube-api-key-3
+YOUTUBE_API_KEY_4=your-youtube-api-key-4
+YOUTUBE_API_KEY_5=your-youtube-api-key-5
+
+# Alternative Music APIs
+SPOTIFY_CLIENT_ID=your-spotify-client-id
+SPOTIFY_CLIENT_SECRET=your-spotify-client-secret
+LASTFM_API_KEY=your-lastfm-api-key
+
+# AI Services
 GEMINI_API_KEY=your-gemini-api-key
 
 # Server Configuration

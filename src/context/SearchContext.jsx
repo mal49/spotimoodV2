@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useReducer, useCallback } from 'react';
 import config from '../lib/config.js';
+import { searchMusicMultiSource } from '../lib/api.js';
 
 const SearchContext = createContext();
 
@@ -76,96 +77,35 @@ export function SearchProvider({ children }) {
     dispatch({ type: 'SET_ERROR', payload: null });
 
     try {
-      const { maxResults = 10, pageToken } = options;
+      const { maxResults = 10, source = 'auto' } = options;
       
-      // Build query parameters
-      const params = new URLSearchParams({
-        query: searchQuery.trim(),
-        maxResults: maxResults.toString()
-      });
+      // Use the new multi-source search
+      const result = await searchMusicMultiSource(searchQuery.trim(), maxResults, source);
       
-      if (pageToken) {
-        params.append('pageToken', pageToken);
+      // Transform the response to match the expected format
+      const transformedData = {
+        videos: result.results || [],
+        artists: [], // Server doesn't return artists, keeping empty
+        albums: [], // Server doesn't return albums, keeping empty
+        pagination: {
+          nextPageToken: null, // Multi-source doesn't support pagination yet
+          prevPageToken: null,
+          totalResults: result.totalResults || 0,
+          resultsPerPage: maxResults
+        },
+        source: result.source,
+        availableSources: result.availableSources
+      };
+      
+      dispatch({ type: 'SET_SEARCH_RESULTS', payload: transformedData });
+      
+      // Log the source used for debugging
+      if (result.source && result.source !== 'youtube') {
+        console.log(`Search completed using ${result.source} API`);
       }
-
-      const response = await fetch(
-        `${config.API_BASE_URL}/api/search-music?${params.toString()}`,
-        {
-          method: 'GET',
-          headers: {
-            'Accept': 'application/json',
-            'Accept-Encoding': 'gzip', // Request gzip compression
-          },
-        }
-      );
       
-      if (response.ok) {
-        const data = await response.json();
-        
-        // Transform the response to match the expected format
-        const transformedData = {
-          videos: data.videos || [],
-          artists: [], // Server doesn't return artists, keeping empty
-          albums: [], // Server doesn't return albums, keeping empty
-          pagination: {
-            nextPageToken: data.nextPageToken,
-            prevPageToken: data.prevPageToken,
-            totalResults: data.totalResults,
-            resultsPerPage: data.resultsPerPage
-          }
-        };
-        
-        dispatch({ type: 'SET_SEARCH_RESULTS', payload: transformedData });
-      } else {
-        // Parse error response
-        let errorData;
-        try {
-          errorData = await response.json();
-        } catch (parseError) {
-          errorData = { 
-            error: `HTTP ${response.status}: ${response.statusText}`,
-            code: 'HTTP_ERROR'
-          };
-        }
-
-        // Handle specific error types
-        switch (errorData.code) {
-          case 'QUOTA_EXCEEDED':
-            throw new Error({
-              message: 'YouTube API quota exceeded. Please try again later.',
-              code: 'QUOTA_EXCEEDED',
-              retryAfter: errorData.retryAfter || 3600
-            });
-          
-          case 'RATE_LIMIT_EXCEEDED':
-            throw new Error({
-              message: `Too many requests. Please wait ${errorData.retryAfter || 60} seconds before trying again.`,
-              code: 'RATE_LIMIT_EXCEEDED',
-              retryAfter: Date.now() + (errorData.retryAfter || 60) * 1000
-            });
-          
-          case 'INVALID_API_KEY':
-            throw new Error({
-              message: 'YouTube API configuration error. Please contact support.',
-              code: 'API_CONFIG_ERROR'
-            });
-          
-          case 'MISSING_QUERY':
-            throw new Error({
-              message: 'Search query is required.',
-              code: 'VALIDATION_ERROR'
-            });
-          
-          default:
-            throw new Error({
-              message: errorData.error || 'Search request failed',
-              code: errorData.code || 'UNKNOWN_ERROR',
-              details: errorData.details
-            });
-        }
-      }
     } catch (error) {
-      console.error('Error searching YouTube:', error);
+      console.error('Error in multi-source search:', error);
       
       // Handle network errors
       if (error.name === 'TypeError' && error.message.includes('fetch')) {

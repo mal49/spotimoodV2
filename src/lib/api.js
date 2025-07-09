@@ -157,6 +157,83 @@ export const searchYouTubeMusic = async (query, maxResults = 6, useCache = true)
   }
 };
 
+// Multi-source music search with automatic fallback
+export const searchMusicMultiSource = async (query, maxResults = 6, source = 'auto', useCache = true) => {
+  const cacheKey = getCacheKey(CACHE_KEYS.SEARCH, `${query}_${maxResults}_${source}`);
+  
+  // Check cache first
+  if (useCache) {
+    const cached = getCachedData(cacheKey);
+    if (cached) {
+      return cached;
+    }
+  }
+
+  try {
+    const response = await fetch(
+      `${config.API_BASE_URL}/api/search-music-multi?query=${encodeURIComponent(query)}&maxResults=${maxResults}&source=${source}`
+    );
+    
+    if (response.ok) {
+      const data = await response.json();
+      const results = data.videos || [];
+      
+      // Cache the results
+      if (useCache) {
+        setCachedData(cacheKey, results);
+      }
+      
+      return {
+        results,
+        source: data.source,
+        totalResults: data.totalResults,
+        availableSources: data.availableSources
+      };
+    }
+    
+    // Handle specific error cases
+    if (response.status === 429) {
+      console.warn('All music APIs rate limited');
+      const cached = getCachedData(cacheKey);
+      return {
+        results: cached || [],
+        source: 'cached',
+        totalResults: cached?.length || 0,
+        availableSources: { youtube: false, spotify: false, lastfm: false }
+      };
+    }
+    
+    if (response.status === 404) {
+      console.warn('No music found for query:', query);
+      return {
+        results: [],
+        source: 'none',
+        totalResults: 0,
+        availableSources: { youtube: false, spotify: false, lastfm: false }
+      };
+    }
+    
+    throw new Error(`API request failed: ${response.status}`);
+  } catch (error) {
+    console.error('Error in multi-source search:', error);
+    
+    // Return cached data if available
+    const cached = getCachedData(cacheKey);
+    return {
+      results: cached || [],
+      source: 'cached',
+      totalResults: cached?.length || 0,
+      availableSources: { youtube: false, spotify: false, lastfm: false }
+    };
+  }
+};
+
+// Legacy function for backward compatibility
+export const searchMusic = async (query, maxResults = 6, useCache = true) => {
+  const result = await searchMusicMultiSource(query, maxResults, 'auto', useCache);
+  return result.results;
+};
+
 // Enhanced Album Loading with caching
 export const loadAlbumsWithCaching = async () => {
   const cacheKey = getCacheKey(CACHE_KEYS.ALBUMS);
