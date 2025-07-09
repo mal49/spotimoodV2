@@ -176,7 +176,8 @@ export const searchMusicMultiSource = async (query, maxResults = 6, source = 'au
     
     if (response.ok) {
       const data = await response.json();
-      const results = data.videos || [];
+      console.log('Backend response:', data); // Debug log
+      const results = data.results || []; // ✅ Fixed: use data.results not data.videos
       
       // Cache the results
       if (useCache) {

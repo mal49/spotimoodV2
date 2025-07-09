@@ -123,7 +123,22 @@ export function PlayerProvider({ children }) {
     playerRef.current = player;
     isPlayerReadyRef.current = true;
     dispatch({ type: 'SET_ERROR', payload: false });
+    
+    // Set volume
     safePlayerCall('setVolume', state.volume);
+    
+    // Get initial duration
+    setTimeout(() => {
+      try {
+        const duration = player.getDuration();
+        if (duration && duration > 0) {
+          dispatch({ type: 'SET_DURATION', payload: duration });
+          console.log('Player ready - Duration set:', duration);
+        }
+      } catch (error) {
+        console.warn('Error getting initial duration:', error);
+      }
+    }, 500);
   }, [state.volume, safePlayerCall]);
 
   const handlePlayerStateChange = useCallback((event) => {
@@ -136,6 +151,15 @@ export function PlayerProvider({ children }) {
         dispatch({ type: 'SET_PLAYING', payload: true });
         dispatch({ type: 'SET_BUFFERING', payload: false });
         dispatch({ type: 'SET_ERROR', payload: false });
+        
+        // Ensure we have duration when playing starts
+        setTimeout(() => {
+          const duration = safePlayerCall('getDuration');
+          if (duration && duration > 0) {
+            dispatch({ type: 'SET_DURATION', payload: duration });
+            console.log('Playing started - Duration updated:', duration);
+          }
+        }, 100);
         break;
       case 2: // Paused
         dispatch({ type: 'SET_PLAYING', payload: false });
@@ -234,17 +258,31 @@ export function PlayerProvider({ children }) {
       clearInterval(timeUpdateIntervalRef.current);
     }
 
-    if (state.isPlaying && isPlayerReadyRef.current) {
+    if (state.isPlaying && isPlayerReadyRef.current && playerRef.current) {
+      console.log('Starting time tracking interval');
       timeUpdateIntervalRef.current = setInterval(() => {
         try {
           const currentTime = safePlayerCall('getCurrentTime');
+          const duration = safePlayerCall('getDuration');
+          
           if (currentTime !== null && currentTime >= 0) {
             dispatch({ type: 'SET_CURRENT_TIME', payload: currentTime });
+          }
+          
+          // Update duration if it changed
+          if (duration !== null && duration > 0 && duration !== state.duration) {
+            dispatch({ type: 'SET_DURATION', payload: duration });
           }
         } catch (error) {
           console.warn('Error getting current time:', error);
         }
-      }, 1000);
+      }, 100); // Changed from 1000ms to 100ms for smooth time tracking
+    } else {
+      console.log('Time tracking not started:', {
+        isPlaying: state.isPlaying,
+        isPlayerReady: isPlayerReadyRef.current,
+        hasPlayer: !!playerRef.current
+      });
     }
 
     return () => {
@@ -252,7 +290,7 @@ export function PlayerProvider({ children }) {
         clearInterval(timeUpdateIntervalRef.current);
       }
     };
-  }, [state.isPlaying, safePlayerCall]);
+  }, [state.isPlaying, state.duration, safePlayerCall]);
 
   // Handle song changes with better error handling
   useEffect(() => {
@@ -271,6 +309,15 @@ export function PlayerProvider({ children }) {
       if (currentSong.id) {
         try {
           safePlayerCall('loadVideoById', currentSong.id);
+          
+          // Get duration after loading
+          setTimeout(() => {
+            const duration = safePlayerCall('getDuration');
+            if (duration && duration > 0) {
+              dispatch({ type: 'SET_DURATION', payload: duration });
+              console.log('Video loaded - Duration set:', duration);
+            }
+          }, 1000);
           
           // If we were playing, continue playing the new song
           if (state.isPlaying) {

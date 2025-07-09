@@ -177,7 +177,7 @@ export default function SearchResults() {
         <div className="space-y-6">
             {/* Results header */}
             <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-gray-900">
+                <h2 className="text-xl font-semibold text-white">
                     Search Results {query && `for "${query}"`}
                 </h2>
                 {searchResults.pagination?.totalResults && (

@@ -390,6 +390,119 @@ app.get('/api/video/:videoId', async (req, res) => {
     }
 });
 
+// Multi-source music search endpoint
+app.get('/api/search-music-multi', async (req, res) => {
+    const { query, maxResults = 6, source = 'auto' } = req.query;
+
+    if (!query || query.trim().length === 0) {
+        console.error('API Error: Search query is missing or empty');
+        return res.status(400).json({
+            error: 'Search query is required and cannot be empty',
+            code: 'MISSING_QUERY'
+        });
+    }
+
+    const resultsCount = Math.min(Math.max(parseInt(maxResults) || 6, 1), 50);
+    console.log(`Received multi-source search request: query='${query}', maxResults=${resultsCount}, source='${source}'`);
+
+    try {
+        let results = [];
+        let usedSource = 'none';
+        const availableSources = { youtube: true, spotify: false, lastfm: false };
+
+        if (source === 'youtube' || source === 'auto') {
+            console.log('Attempting YouTube search...');
+            
+            // Use the same YouTube search logic from /api/search-music endpoint
+            const searchParams = {
+                part: 'snippet',
+                q: query.trim(),
+                type: 'video',
+                videoCategoryId: '10', // Music category
+                maxResults: resultsCount,
+                order: 'relevance',
+                safeSearch: 'none',
+                videoEmbeddable: 'true', // Only get embeddable videos
+                fields: 'items(id/videoId,snippet(title,channelTitle,thumbnails/high/url,publishedAt)),nextPageToken,prevPageToken,pageInfo/totalResults'
+            };
+
+            const response = await createYouTubeAPI(getNextAvailableKey()).search.list(searchParams);
+
+            // Increment quota usage
+            incrementKeyUsage(currentKeyIndex);
+            
+            // Transform response according to application needs
+            results = response.data.items?.map(item => ({
+                id: item.id.videoId,
+                title: item.snippet.title,
+                thumbnail: item.snippet.thumbnails?.high?.url || 'https://placehold.co/320x180/AA60C8/FFFFFF?text=No+Image',
+                channelTitle: item.snippet.channelTitle,
+                publishedAt: item.snippet.publishedAt
+            })) || [];
+            
+            usedSource = 'youtube';
+            console.log(`YouTube search completed. Found ${results.length} results.`);
+        } else {
+            console.warn(`Unsupported source requested: ${source}. Falling back to YouTube if 'auto' was intended.`);
+            // If a specific unsupported source is requested, we might want to return empty or an error
+            // For now, if 'auto' was not the source and it's not youtube, we won't search.
+            if (source !== 'auto') {
+                 return res.status(400).json({
+                    error: `Unsupported search source: ${source}. Only 'youtube' or 'auto' are currently supported.`,
+                    code: 'UNSUPPORTED_SOURCE'
+                });
+            }
+        }
+
+        res.json({
+            results: results,
+            source: usedSource,
+            totalResults: results.length,
+            availableSources: availableSources
+        });
+
+    } catch (error) {
+        console.error('Error in multi-source search endpoint:', error);
+        
+        // Handle specific YouTube API errors according to documentation
+        if (error.response) {
+            const { status, data } = error.response;
+            
+            // Handle quota exceeded error
+            if (status === 403 && data.error?.errors?.[0]?.reason === 'quotaExceeded') {
+                // Mark current key as quota exceeded
+                markKeyQuotaExceeded(currentKeyIndex);
+                
+                return res.status(429).json({
+                    error: 'YouTube API quota exceeded',
+                    code: 'QUOTA_EXCEEDED',
+                    retryAfter: Math.ceil((Date.now() + (24 * 60 * 60 * 1000) - Date.now()) / 1000) // Show retry after 24 hours
+                });
+            }
+            
+            // Handle invalid API key
+            if (status === 400 && data.error?.errors?.[0]?.reason === 'keyInvalid') {
+                return res.status(401).json({
+                    error: 'Invalid YouTube API key',
+                    code: 'INVALID_API_KEY'
+                });
+            }
+            
+            return res.status(status).json({
+                error: 'YouTube API Error',
+                code: data.error?.errors?.[0]?.reason || 'API_ERROR',
+                details: data.error?.message || 'Unknown error'
+            });
+        }
+        
+        res.status(500).json({ 
+            error: 'Error searching YouTube',
+            code: 'INTERNAL_ERROR',
+            details: error.message
+        });
+    }
+});
+
 // In-memory playlist storage
 const playlists = [];
 

@@ -36,6 +36,16 @@ export default function NowPlayingBar() {
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
+  // Debug logging
+  React.useEffect(() => {
+    console.log('NowPlaying Bar Values:', {
+      currentTime,
+      duration,
+      isPlaying,
+      currentSong: currentSong?.title
+    });
+  }, [currentTime, duration, isPlaying, currentSong]);
+
   // Placeholder values if no song is playing
   const isPlaceholder = !currentSong;
   const song = currentSong || {
@@ -82,7 +92,7 @@ export default function NowPlayingBar() {
       {/* Mobile Layout */}
       <div className="block sm:hidden">
         {/* Main Content Row */}
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-3 mb-2">
           {/* Album Art */}
           <div className="flex-shrink-0">
             {isPlaceholder ? (
@@ -139,6 +149,23 @@ export default function NowPlayingBar() {
             </button>
           </div>
         </div>
+
+        {/* Mobile Timestamp Display */}
+        <div className="flex items-center justify-center space-x-2 text-xs">
+          <span className={`font-mono tabular-nums transition-all duration-100 ${
+            isPlaceholder ? 'text-gray-600' : 'text-gray-300'
+          }`}>
+            {formatTime(isPlaceholder ? 0 : currentTime)}
+          </span>
+          <div className={`w-1 h-1 rounded-full ${
+            isPlaceholder ? 'bg-gray-600' : 'bg-gray-400'
+          }`}></div>
+          <span className={`font-mono tabular-nums ${
+            isPlaceholder ? 'text-gray-600' : 'text-gray-400'
+          }`}>
+            {formatTime(isPlaceholder ? 0 : duration)}
+          </span>
+        </div>
       </div>
 
       {/* Desktop Layout */}
@@ -174,9 +201,9 @@ export default function NowPlayingBar() {
           </div>
 
           {/* Playback Controls - Center Section */}
-          <div className="flex items-center justify-center flex-2 max-w-2xl px-6">
+          <div className="flex flex-col items-center justify-center flex-2 max-w-2xl px-6">
             {/* Control Buttons */}
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-4 mb-2">
               <button
                 onClick={playPrevious}
                 className={`group rounded-full p-2 transition-all duration-300 ${
@@ -226,6 +253,23 @@ export default function NowPlayingBar() {
               >
                 <SkipForward className="w-5 h-5 transition-transform group-hover:translate-x-0.5" />
               </button>
+            </div>
+
+            {/* Timestamp Display */}
+            <div className="flex items-center space-x-2 text-xs">
+              <span className={`font-mono tabular-nums transition-all duration-100 ${
+                isPlaceholder ? 'text-gray-600' : 'text-gray-300'
+              }`}>
+                {formatTime(isPlaceholder ? 0 : currentTime)}
+              </span>
+              <div className={`w-1 h-1 rounded-full ${
+                isPlaceholder ? 'bg-gray-600' : 'bg-gray-400'
+              }`}></div>
+              <span className={`font-mono tabular-nums ${
+                isPlaceholder ? 'text-gray-600' : 'text-gray-400'
+              }`}>
+                {formatTime(isPlaceholder ? 0 : duration)}
+              </span>
             </div>
           </div>
 

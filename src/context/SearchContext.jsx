@@ -82,6 +82,9 @@ export function SearchProvider({ children }) {
       // Use the new multi-source search
       const result = await searchMusicMultiSource(searchQuery.trim(), maxResults, source);
       
+      // Debug log to see what we actually received
+      console.log('Received result from searchMusicMultiSource:', result);
+      
       // Transform the response to match the expected format
       const transformedData = {
         videos: result.results || [],
@@ -97,6 +100,7 @@ export function SearchProvider({ children }) {
         availableSources: result.availableSources
       };
       
+      console.log('Transformed data for dispatch:', transformedData);
       dispatch({ type: 'SET_SEARCH_RESULTS', payload: transformedData });
       
       // Log the source used for debugging
