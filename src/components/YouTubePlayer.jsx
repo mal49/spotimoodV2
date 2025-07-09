@@ -138,16 +138,14 @@ const YouTubePlayer = ({ videoId, onReady, onStateChange }) => {
     setHasError(false);
     setErrorMessage('');
 
-    console.log('Creating YouTube player for video:', videoId);
-
-    // Initialize the player with mobile-friendly configuration
+    // Initialize the player with improved configuration
     try {
       playerRef.current = new window.YT.Player(containerRef.current, {
         height: '0',
         width: '0',
         videoId: videoId,
         playerVars: {
-          autoplay: 0, // Start with autoplay disabled
+          autoplay: 1,
           controls: 0,
           disablekb: 1,
           enablejsapi: 1,
@@ -166,8 +164,6 @@ const YouTubePlayer = ({ videoId, onReady, onStateChange }) => {
             setHasError(false);
             setErrorMessage('');
             retryCountRef.current = 0;
-            
-            console.log('YouTube player ready');
             
             if (onReady && typeof onReady === 'function') {
               try {

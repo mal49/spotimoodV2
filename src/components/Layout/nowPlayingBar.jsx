@@ -1,11 +1,20 @@
-import React, { useState, useEffect } from 'react';
-import { Heart, Play, Pause, SkipBack, SkipForward, Music, Volume2 } from 'lucide-react';
+import React from 'react';
 import { usePlayer } from '../../context/PlayerContext';
 import { usePlaylist } from '../../context/PlaylistContext';
 import { useAuth } from '../../context/AuthContext';
-import { useFeedback } from '../../context/FeedbackContext';
 import YouTubePlayer from '../YouTubePlayer';
-import ProgressBar from '../MusicPlayer/progressBar';
+import { 
+  Music, 
+  SkipBack, 
+  Play, 
+  Pause, 
+  SkipForward, 
+  Volume2, 
+  Volume1, 
+  Volume, 
+  VolumeX,
+  Heart
+} from 'lucide-react';
 
 // Now Playing Bar Component
 export default function NowPlayingBar() {
@@ -134,8 +143,9 @@ export default function NowPlayingBar() {
     artist: '—',
     id: '',
   };
+
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-r from-gray-900/95 via-gray-800/95 to-gray-900/95 backdrop-blur-xl px-2 sm:px-4 py-2 z-50 shadow-2xl mobile-player-controls">
+    <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-r from-gray-900/95 via-gray-800/95 to-gray-900/95 backdrop-blur-xl px-2 sm:px-4 py-2 z-50 shadow-2xl">
       {/* Progress Bar - Acting as Top Border */}
       <div className="absolute top-0 left-0 right-0 h-1">
         <div className="relative h-full">
@@ -146,8 +156,7 @@ export default function NowPlayingBar() {
             max={isPlaceholder ? 1 : duration}
             value={isPlaceholder ? 0 : currentTime}
             onChange={isPlaceholder ? undefined : (e) => seekTo(parseInt(e.target.value))}
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer touch-target"
-            style={{ WebkitTapHighlightColor: 'transparent' }}
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
             disabled={isPlaceholder}
           />
           <div 
@@ -170,7 +179,7 @@ export default function NowPlayingBar() {
       )}
       
       {/* Mobile Layout */}
-      <div className="block sm:hidden mobile-scroll">
+      <div className="block sm:hidden">
         {/* Main Content Row */}
         <div className="flex items-center space-x-3 mb-2">
           {/* Album Art */}
@@ -198,168 +207,38 @@ export default function NowPlayingBar() {
             </p>
           </div>
 
-          {/* Like Button - Mobile */}
-          {isAuthenticated && !isPlaceholder && (
-            <button
-              onClick={handleLikeToggle}
-              disabled={isLiking}
-              className="touch-target mobile-button flex-shrink-0 p-2 rounded-full transition-all duration-300 focus:outline-none active:scale-95"
-              aria-label={isCurrentSongLiked ? 'Remove from liked songs' : 'Add to liked songs'}
-            >
-              <Heart 
-                className={`w-4 h-4 transition-all duration-300 ${
-                  isCurrentSongLiked 
-                    ? 'text-red-500 fill-red-500 drop-shadow-sm' 
-                    : 'text-gray-400 hover:text-red-400'
-                } ${isLiking ? 'animate-pulse' : ''}`}
-              />
-            </button>
-          )}
-        </div>
-
-        {/* Mobile Controls Row */}
-        <div className="flex items-center justify-center space-x-6 py-1">
-          {/* Previous Button */}
-          <button
-            onClick={playPrevious}
-            className={`touch-target mobile-button p-2 rounded-full transition-all duration-300 focus:outline-none active:scale-95 ${
-              isPlaceholder 
-                ? 'opacity-40 cursor-not-allowed text-gray-500' 
-                : 'text-gray-300 hover:text-white hover:bg-white/10'
-            }`}
-            disabled={isPlaceholder}
-            aria-label="Previous track"
-          >
-            <SkipBack className="w-5 h-5" />
-          </button>
-
-          {/* Play/Pause Button - Larger for mobile */}
-          <button
-            onClick={togglePlay}
-            className={`touch-target mobile-button p-3 rounded-full transition-all duration-300 focus:outline-none active:scale-95 relative ${
-              isPlaceholder 
-                ? 'opacity-40 cursor-not-allowed bg-gray-600' 
-                : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 shadow-lg'
-            } text-white`}
-            disabled={isPlaceholder}
-            aria-label={isPlaying ? 'Pause' : 'Play'}
-          >
-            {/* Glow effect for mobile */}
-            {!isPlaceholder && (
-              <div className="absolute inset-0 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 opacity-0 active:opacity-30 blur-lg transition-opacity duration-200"></div>
+          {/* Controls */}
+          <div className="flex items-center space-x-2 flex-shrink-0">
+            {/* Like Button - Mobile */}
+            {isAuthenticated && (
+              <button
+                onClick={handleLikeToggle}
+                disabled={isPlaceholder || isLiking}
+                className={`p-2 rounded-full transition-all duration-200 ${
+                  isPlaceholder || isLiking
+                    ? 'opacity-40 cursor-not-allowed' 
+                    : isCurrentSongLiked
+                    ? 'text-red-500 hover:text-red-400 hover:bg-red-500/10 active:scale-95'
+                    : 'text-gray-300 hover:text-red-500 hover:bg-white/10 active:scale-95'
+                }`}
+                title={isCurrentSongLiked ? 'Remove from Liked Songs' : 'Add to Liked Songs'}
+              >
+                <Heart 
+                  className={`w-4 h-4 transition-all duration-200 ${
+                    isCurrentSongLiked ? 'fill-current' : ''
+                  }`} 
+                />
+              </button>
             )}
-            
-            <div className="relative">
-              {isPlaying ? (
-                <Pause className="w-6 h-6" />
-              ) : (
-                <Play className="w-6 h-6 translate-x-0.5" />
-              )}
-            </div>
-          </button>
-
-          {/* Next Button */}
-          <button
-            onClick={playNext}
-            className={`touch-target mobile-button p-2 rounded-full transition-all duration-300 focus:outline-none active:scale-95 ${
-              isPlaceholder 
-                ? 'opacity-40 cursor-not-allowed text-gray-500' 
-                : 'text-gray-300 hover:text-white hover:bg-white/10'
-            }`}
-            disabled={isPlaceholder}
-            aria-label="Next track"
-          >
-            <SkipForward className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Mobile Timestamp Display */}
-        <div className="mt-2 px-1">
-          <ProgressBar
-            size="small"
-            showTime={true}
-            showHoverPreview={false}
-            className="w-full"
-          />
-        </div>
-      </div>
-
-      {/* Desktop Layout */}
-      <div className="hidden sm:flex items-center justify-between w-full max-w-7xl mx-auto px-4">
-        {/* Left: Song Info */}
-        <div className="flex items-center space-x-3 min-w-0 flex-1">
-          <div className="relative group">
-            {isPlaceholder ? (
-              <div className="w-12 h-12 rounded-lg flex items-center justify-center bg-gradient-to-br from-purple-600/20 to-pink-600/20 border border-white/10">
-                <Music className="w-6 h-6 text-white/60" />
-              </div>
-            ) : (
-              <img
-                src={song.thumbnail}
-                alt={song.title}
-                className="w-12 h-12 rounded-lg object-cover shadow-lg border border-white/20"
-              />
-            )}
-          </div>
-          
-          <div className="min-w-0 flex-1">
-            <h3 className={`font-medium text-sm truncate ${isPlaceholder ? 'text-gray-400' : 'text-white'}`}>
-              {song.title}
-            </h3>
-            <p className={`text-xs truncate ${isPlaceholder ? 'text-gray-600' : 'text-gray-300'}`}>
-              {song.artist}
-            </p>
-          </div>
-
-          {/* Like Button */}
-          {isAuthenticated && (
-            <button
-              onClick={handleLikeToggle}
-              disabled={isPlaceholder || isLiking}
-              className={`p-2 rounded-full transition-all duration-200 ${
-                isPlaceholder || isLiking
-                  ? 'opacity-40 cursor-not-allowed' 
-                  : isCurrentSongLiked
-                  ? 'text-red-500 hover:text-red-400 hover:bg-red-500/10'
-                  : 'text-gray-300 hover:text-red-500 hover:bg-white/10'
-              }`}
-              title={isCurrentSongLiked ? 'Remove from Liked Songs' : 'Add to Liked Songs'}
-            >
-              <Heart 
-                className={`w-5 h-5 transition-all duration-200 ${
-                  isCurrentSongLiked ? 'fill-current' : ''
-                } ${isLiking ? 'animate-pulse' : ''}`} 
-              />
-            </button>
-          )}
-        </div>
-
-        {/* Center: Playback Controls */}
-        <div className="flex flex-col items-center space-y-2 flex-shrink-0">
-          {/* Control Buttons */}
-          <div className="flex items-center space-x-6">
-            <button
-              onClick={playPrevious}
-              className={`p-2 rounded-full transition-all duration-200 ${
-                isPlaceholder 
-                  ? 'opacity-40 cursor-not-allowed' 
-                  : 'text-gray-300 hover:text-white hover:bg-white/10'
-              }`}
-              disabled={isPlaceholder}
-              aria-label="Previous track"
-            >
-              <SkipBack className="w-5 h-5" />
-            </button>
 
             <button
               onClick={togglePlay}
-              className={`p-3 rounded-full transition-all duration-200 ${
+              className={`p-2.5 rounded-full transition-all duration-200 ${
                 isPlaceholder 
                   ? 'opacity-40 cursor-not-allowed bg-gray-600' 
-                  : 'bg-white text-black hover:bg-gray-100 hover:scale-105'
-              }`}
+                  : 'bg-white/10 hover:bg-white/20 active:scale-95'
+              } text-white`}
               disabled={isPlaceholder}
-              aria-label={isPlaying ? 'Pause' : 'Play'}
             >
               {isPlaying ? (
                 <Pause className="w-5 h-5" />
@@ -370,53 +249,198 @@ export default function NowPlayingBar() {
 
             <button
               onClick={playNext}
-              className={`p-2 rounded-full transition-all duration-200 ${
+              className={`p-2.5 rounded-full transition-all duration-200 ${
                 isPlaceholder 
                   ? 'opacity-40 cursor-not-allowed' 
-                  : 'text-gray-300 hover:text-white hover:bg-white/10'
-              }`}
+                  : 'hover:bg-white/10 active:scale-95'
+              } text-gray-300 hover:text-white`}
               disabled={isPlaceholder}
-              aria-label="Next track"
             >
               <SkipForward className="w-5 h-5" />
             </button>
           </div>
-
-          {/* Progress Bar */}
-          <div className="w-full max-w-lg">
-            <ProgressBar
-              size="small"
-              showTime={false}
-              showHoverPreview={true}
-              className="w-full"
-            />
-          </div>
         </div>
 
-        {/* Right: Volume and Timestamp */}
-        <div className="flex items-center space-x-4 flex-1 justify-end">
-          {/* Timestamp */}
-          <div className="flex items-center space-x-1 text-xs text-gray-400 min-w-0">
-            <span>{formatTime(currentTime)}</span>
-            <span>/</span>
-            <span>{formatTime(duration)}</span>
+        {/* Mobile Timestamp Display */}
+        <div className="flex items-center justify-center space-x-2 text-xs">
+          <span className={`font-mono tabular-nums transition-all duration-100 ${
+            isPlaceholder ? 'text-gray-600' : 'text-gray-300'
+          }`}>
+            {formatTime(isPlaceholder ? 0 : currentTime)}
+          </span>
+          <div className={`w-1 h-1 rounded-full ${
+            isPlaceholder ? 'bg-gray-600' : 'bg-gray-400'
+          }`}></div>
+          <span className={`font-mono tabular-nums ${
+            isPlaceholder ? 'text-gray-600' : 'text-gray-400'
+          }`}>
+            {formatTime(isPlaceholder ? 0 : duration)}
+          </span>
+        </div>
+      </div>
+
+      {/* Desktop Layout */}
+      <div className="hidden sm:block">
+        <div className="relative flex items-center justify-between w-full max-w-7xl mx-auto">
+          {/* Song Info */}
+          <div className="flex items-center space-x-3 min-w-0 flex-1">
+            <div className="relative group">
+              {isPlaceholder ? (
+                <div className="w-12 h-12 rounded-lg flex items-center justify-center bg-gradient-to-br from-purple-600/20 to-pink-600/20 border border-white/10 shadow-lg backdrop-blur-sm">
+                  <Music className="w-6 h-6 text-white/60" />
+                </div>
+              ) : (
+                <div className="relative">
+                  <img
+                    src={song.thumbnail}
+                    alt={song.title}
+                    className="w-12 h-12 rounded-lg object-cover shadow-lg border border-white/20 group-hover:scale-105 transition-transform duration-300"
+                  />
+                  <div className="absolute inset-0 rounded-lg bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                </div>
+              )}
+            </div>
+            
+            <div className="min-w-0 flex flex-col justify-center">
+              <h3 className={`font-semibold text-base truncate ${isPlaceholder ? 'text-gray-400' : 'text-white'} max-w-xs`}>
+                {song.title}
+              </h3>
+              <p className={`text-xs truncate ${isPlaceholder ? 'text-gray-600' : 'text-gray-300'} max-w-xs`}>
+                {song.artist}
+              </p>
+            </div>
+
+            {/* Like Button - Desktop (next to song info) */}
+            {isAuthenticated && (
+              <button
+                onClick={handleLikeToggle}
+                disabled={isPlaceholder || isLiking}
+                className={`p-2 rounded-full transition-all duration-200 ${
+                  isPlaceholder || isLiking
+                    ? 'opacity-40 cursor-not-allowed' 
+                    : isCurrentSongLiked
+                    ? 'text-red-500 hover:text-red-400 hover:bg-red-500/10 hover:scale-110 active:scale-95'
+                    : 'text-gray-300 hover:text-red-500 hover:bg-white/10 hover:scale-110 active:scale-95'
+                }`}
+                title={isCurrentSongLiked ? 'Remove from Liked Songs' : 'Add to Liked Songs'}
+              >
+                <Heart 
+                  className={`w-5 h-5 transition-all duration-200 ${
+                    isCurrentSongLiked ? 'fill-current' : ''
+                  } ${isLiking ? 'animate-pulse' : ''}`} 
+                />
+              </button>
+            )}
+          </div>
+
+          {/* Playback Controls - Center Section */}
+          <div className="flex flex-col items-center justify-center flex-2 max-w-2xl px-6">
+            {/* Control Buttons */}
+            <div className="flex items-center space-x-4 mb-2">
+              <button
+                onClick={playPrevious}
+                className={`group rounded-full p-2 transition-all duration-300 ${
+                  isPlaceholder 
+                    ? 'opacity-40 cursor-not-allowed' 
+                    : 'hover:bg-white/10 hover:scale-110 active:scale-95'
+                } text-gray-300 hover:text-white focus:outline-none`}
+                aria-label="Previous"
+                disabled={isPlaceholder}
+              >
+                <SkipBack className="w-5 h-5 transition-transform group-hover:-translate-x-0.5" />
+              </button>
+
+              <button
+                onClick={togglePlay}
+                className={`group relative rounded-full p-3 transition-all duration-300 ${
+                  isPlaceholder 
+                    ? 'opacity-40 cursor-not-allowed bg-gray-600' 
+                    : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 hover:scale-110 active:scale-95 shadow-lg hover:shadow-xl'
+                } text-white focus:outline-none`}
+                aria-label={isPlaying ? 'Pause' : 'Play'}
+                disabled={isPlaceholder}
+              >
+                {/* Glow effect */}
+                {!isPlaceholder && (
+                  <div className="absolute inset-0 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 opacity-0 group-hover:opacity-30 blur-lg transition-opacity duration-300"></div>
+                )}
+                
+                <div className="relative">
+                  {isPlaying ? (
+                    <Pause className="w-6 h-6" />
+                  ) : (
+                    <Play className="w-6 h-6 translate-x-0.5" />
+                  )}
+                </div>
+              </button>
+
+              <button
+                onClick={playNext}
+                className={`group rounded-full p-2 transition-all duration-300 ${
+                  isPlaceholder 
+                    ? 'opacity-40 cursor-not-allowed' 
+                    : 'hover:bg-white/10 hover:scale-110 active:scale-95'
+                } text-gray-300 hover:text-white focus:outline-none`}
+                aria-label="Next"
+                disabled={isPlaceholder}
+              >
+                <SkipForward className="w-5 h-5 transition-transform group-hover:translate-x-0.5" />
+              </button>
+            </div>
+
+            {/* Timestamp Display */}
+            <div className="flex items-center space-x-2 text-xs">
+              <span className={`font-mono tabular-nums transition-all duration-100 ${
+                isPlaceholder ? 'text-gray-600' : 'text-gray-300'
+              }`}>
+                {formatTime(isPlaceholder ? 0 : currentTime)}
+              </span>
+              <div className={`w-1 h-1 rounded-full ${
+                isPlaceholder ? 'bg-gray-600' : 'bg-gray-400'
+              }`}></div>
+              <span className={`font-mono tabular-nums ${
+                isPlaceholder ? 'text-gray-600' : 'text-gray-400'
+              }`}>
+                {formatTime(isPlaceholder ? 0 : duration)}
+              </span>
+            </div>
           </div>
 
           {/* Volume Control */}
-          <div className="flex items-center space-x-2">
-            <Volume2 className="w-4 h-4 text-gray-400" />
-            <div className="relative group">
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={volume}
-                onChange={(e) => setVolume(parseInt(e.target.value))}
-                className="w-20 h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer slider"
-                style={{
-                  background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${volume}%, #4b5563 ${volume}%, #4b5563 100%)`
-                }}
-              />
+          <div className="flex items-center flex-1 justify-end">
+            <div className="flex items-center space-x-2 bg-white/8 rounded-full px-3 py-1.5 backdrop-blur-sm border border-white/10 hover:bg-white/12 transition-all duration-300">
+              <button
+                onClick={() => setVolume(volume > 0 ? 0 : 50)}
+                className="transition-all duration-300 hover:scale-110 active:scale-95 text-gray-300 hover:text-white focus:outline-none"
+                aria-label={volume === 0 ? 'Unmute' : 'Mute'}
+              >
+                {volume === 0 ? (
+                  <VolumeX className="w-4 h-4" />
+                ) : volume < 30 ? (
+                  <Volume className="w-4 h-4" />
+                ) : volume < 70 ? (
+                  <Volume1 className="w-4 h-4" />
+                ) : (
+                  <Volume2 className="w-4 h-4" />
+                )}
+              </button>
+              
+              <div className="relative group flex-1">
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={volume}
+                  onChange={(e) => setVolume(parseInt(e.target.value))}
+                  className="w-20 h-1 bg-white/20 rounded-full appearance-none cursor-pointer slider"
+                  style={{
+                    background: `linear-gradient(to right, #8b5cf6 0%, #ec4899 ${volume}%, rgba(255,255,255,0.2) ${volume}%, rgba(255,255,255,0.2) 100%)`
+                  }}
+                />
+                <div className="absolute top-1/2 left-0 h-1 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full pointer-events-none transform -translate-y-1/2 transition-all duration-300 group-hover:h-1.5"
+                     style={{ width: `${volume}%` }}>
+                </div>
+              </div>
             </div>
           </div>
         </div>
