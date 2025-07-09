@@ -162,26 +162,7 @@ export function AppProvider({ children }) {
     }
   }, [user, state.userHasStoredMood]);
 
-  // Add page visibility handling to prevent state loss
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        // Page became visible again - refresh stored mood state
-        const storedMood = localStorage.getItem('userMood');
-        const hasStoredMood = !!storedMood;
-        
-        if (hasStoredMood !== state.userHasStoredMood) {
-          dispatch({ type: 'SET_USER_HAS_STORED_MOOD', payload: hasStoredMood });
-        }
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [state.userHasStoredMood]);
+  // Removed page visibility handling as it was causing unnecessary reloads
 
   const handleGetStarted = () => {
     dispatch({ type: 'SET_SHOW_MAIN_APP', payload: true });
