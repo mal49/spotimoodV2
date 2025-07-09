@@ -8,46 +8,9 @@ const YouTubePlayer = ({ videoId, onReady, onStateChange }) => {
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [hasUserInteracted, setHasUserInteracted] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
   const retryCountRef = useRef(0);
   const maxRetries = 3;
   const loadTimeoutRef = useRef(null);
-
-  // Check if device is mobile
-  const checkIsMobile = useCallback(() => {
-    const userAgent = navigator.userAgent || navigator.vendor || window.opera;
-    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent) ||
-           (window.matchMedia && window.matchMedia("(max-width: 768px)").matches);
-  }, []);
-
-  // Initialize mobile detection
-  useEffect(() => {
-    setIsMobile(checkIsMobile());
-    
-    // Listen for user interaction on mobile devices
-    if (checkIsMobile()) {
-      const handleUserInteraction = () => {
-        setHasUserInteracted(true);
-        console.log('User interaction detected on mobile device');
-        
-        // Remove listeners after first interaction
-        document.removeEventListener('touchstart', handleUserInteraction);
-        document.removeEventListener('click', handleUserInteraction);
-      };
-
-      document.addEventListener('touchstart', handleUserInteraction, { once: true });
-      document.addEventListener('click', handleUserInteraction, { once: true });
-
-      return () => {
-        document.removeEventListener('touchstart', handleUserInteraction);
-        document.removeEventListener('click', handleUserInteraction);
-      };
-    } else {
-      // On desktop, assume user can interact immediately
-      setHasUserInteracted(true);
-    }
-  }, [checkIsMobile]);
 
   // Check if YouTube API is already loaded
   const checkApiReady = useCallback(() => {
@@ -175,36 +138,28 @@ const YouTubePlayer = ({ videoId, onReady, onStateChange }) => {
     setHasError(false);
     setErrorMessage('');
 
-    // Mobile-specific player configuration
-    const playerVars = {
-      controls: 0,
-      disablekb: 1,
-      enablejsapi: 1,
-      fs: 0,
-      modestbranding: 1,
-      rel: 0,
-      iv_load_policy: 3,
-      cc_load_policy: 0,
-      showinfo: 0,
-      playsinline: 1,
-      origin: config.youtube.embedOrigin,
-      // Handle autoplay based on mobile/desktop and user interaction
-      autoplay: isMobile ? (hasUserInteracted ? 1 : 0) : 1,
-    };
+    console.log('Creating YouTube player for video:', videoId);
 
-    console.log('Creating YouTube player with config:', {
-      isMobile,
-      hasUserInteracted,
-      autoplay: playerVars.autoplay
-    });
-
-    // Initialize the player with improved configuration
+    // Initialize the player with mobile-friendly configuration
     try {
       playerRef.current = new window.YT.Player(containerRef.current, {
         height: '0',
         width: '0',
         videoId: videoId,
-        playerVars,
+        playerVars: {
+          autoplay: 0, // Start with autoplay disabled
+          controls: 0,
+          disablekb: 1,
+          enablejsapi: 1,
+          fs: 0,
+          modestbranding: 1,
+          rel: 0,
+          iv_load_policy: 3,
+          cc_load_policy: 0,
+          showinfo: 0,
+          playsinline: 1,
+          origin: config.youtube.embedOrigin,
+        },
         events: {
           onReady: (event) => {
             setIsPlayerReady(true);
@@ -212,15 +167,7 @@ const YouTubePlayer = ({ videoId, onReady, onStateChange }) => {
             setErrorMessage('');
             retryCountRef.current = 0;
             
-            // On mobile, mute initially to help with autoplay restrictions
-            if (isMobile && !hasUserInteracted) {
-              try {
-                event.target.mute();
-                console.log('Player muted on mobile to comply with autoplay policy');
-              } catch (error) {
-                console.warn('Could not mute player:', error);
-              }
-            }
+            console.log('YouTube player ready');
             
             if (onReady && typeof onReady === 'function') {
               try {
@@ -231,18 +178,6 @@ const YouTubePlayer = ({ videoId, onReady, onStateChange }) => {
             }
           },
           onStateChange: (event) => {
-            // Handle mobile autoplay restrictions
-            if (isMobile && !hasUserInteracted && event.data === 1) {
-              // If playing started without user interaction on mobile, pause immediately
-              console.log('Pausing playback due to lack of user interaction on mobile');
-              try {
-                event.target.pauseVideo();
-              } catch (error) {
-                console.warn('Could not pause video:', error);
-              }
-              return;
-            }
-
             if (onStateChange && typeof onStateChange === 'function') {
               try {
                 onStateChange(event);
@@ -318,7 +253,7 @@ const YouTubePlayer = ({ videoId, onReady, onStateChange }) => {
         }, retryDelay);
       }
     }
-  }, [isApiReady, videoId, hasError, onReady, onStateChange, isMobile, hasUserInteracted]);
+  }, [isApiReady, videoId, hasError, onReady, onStateChange]);
 
   // Create player when API is ready and video ID changes
   useEffect(() => {
@@ -327,30 +262,12 @@ const YouTubePlayer = ({ videoId, onReady, onStateChange }) => {
     }
   }, [isApiReady, videoId, createPlayer]);
 
-  // Recreate player when user interaction state changes on mobile
-  useEffect(() => {
-    if (isMobile && hasUserInteracted && isPlayerReady && playerRef.current) {
-      console.log('User interacted on mobile, updating player configuration');
-      // Unmute the player when user has interacted
-      try {
-        playerRef.current.unMute();
-      } catch (error) {
-        console.warn('Could not unmute player:', error);
-      }
-    }
-  }, [isMobile, hasUserInteracted, isPlayerReady]);
-
   // Render player container and error message if any
   return (
     <div>
       <div ref={containerRef} />
       {hasError && errorMessage && (
         <div className="text-red-500 text-sm mt-2">{errorMessage}</div>
-      )}
-      {isMobile && !hasUserInteracted && (
-        <div className="text-yellow-500 text-xs mt-1 opacity-0">
-          Tap play button to start music
-        </div>
       )}
     </div>
   );

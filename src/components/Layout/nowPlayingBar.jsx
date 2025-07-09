@@ -1,20 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { Heart, Play, Pause, SkipBack, SkipForward, Music, Volume2 } from 'lucide-react';
 import { usePlayer } from '../../context/PlayerContext';
 import { usePlaylist } from '../../context/PlaylistContext';
 import { useAuth } from '../../context/AuthContext';
+import { useFeedback } from '../../context/FeedbackContext';
 import YouTubePlayer from '../YouTubePlayer';
-import { 
-  Music, 
-  SkipBack, 
-  Play, 
-  Pause, 
-  SkipForward, 
-  Volume2, 
-  Volume1, 
-  Volume, 
-  VolumeX,
-  Heart
-} from 'lucide-react';
+import ProgressBar from '../MusicPlayer/progressBar';
 
 // Now Playing Bar Component
 export default function NowPlayingBar() {
@@ -283,158 +274,150 @@ export default function NowPlayingBar() {
         </div>
 
         {/* Mobile Timestamp Display */}
-        <div className="flex items-center justify-between text-xs text-gray-400 mt-1 px-1">
-          <span>{formatTime(currentTime)}</span>
-          <span>{formatTime(duration)}</span>
+        <div className="mt-2 px-1">
+          <ProgressBar
+            size="small"
+            showTime={true}
+            showHoverPreview={false}
+            className="w-full"
+          />
         </div>
       </div>
 
       {/* Desktop Layout */}
-      <div className="hidden sm:block">
-        <div className="relative flex items-center justify-between w-full max-w-7xl mx-auto">
-          {/* Song Info */}
-          <div className="flex items-center space-x-3 min-w-0 flex-1">
-            <div className="relative group">
-              {isPlaceholder ? (
-                <div className="w-12 h-12 rounded-lg flex items-center justify-center bg-gradient-to-br from-purple-600/20 to-pink-600/20 border border-white/10 shadow-lg backdrop-blur-sm">
-                  <Music className="w-6 h-6 text-white/60" />
-                </div>
-              ) : (
-                <div className="relative">
-                  <img
-                    src={song.thumbnail}
-                    alt={song.title}
-                    className="w-12 h-12 rounded-lg object-cover shadow-lg border border-white/20 group-hover:scale-105 transition-transform duration-300"
-                  />
-                  <div className="absolute inset-0 rounded-lg bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                </div>
-              )}
-            </div>
-            
-            <div className="min-w-0 flex flex-col justify-center">
-              <h3 className={`font-semibold text-base truncate ${isPlaceholder ? 'text-gray-400' : 'text-white'} max-w-xs`}>
-                {song.title}
-              </h3>
-              <p className={`text-xs truncate ${isPlaceholder ? 'text-gray-600' : 'text-gray-300'} max-w-xs`}>
-                {song.artist}
-              </p>
-            </div>
-
-            {/* Like Button - Desktop (next to song info) */}
-            {isAuthenticated && (
-              <button
-                onClick={handleLikeToggle}
-                disabled={isPlaceholder || isLiking}
-                className={`p-2 rounded-full transition-all duration-200 ${
-                  isPlaceholder || isLiking
-                    ? 'opacity-40 cursor-not-allowed' 
-                    : isCurrentSongLiked
-                    ? 'text-red-500 hover:text-red-400 hover:bg-red-500/10 hover:scale-110 active:scale-95'
-                    : 'text-gray-300 hover:text-red-500 hover:bg-white/10 hover:scale-110 active:scale-95'
-                }`}
-                title={isCurrentSongLiked ? 'Remove from Liked Songs' : 'Add to Liked Songs'}
-              >
-                <Heart 
-                  className={`w-5 h-5 transition-all duration-200 ${
-                    isCurrentSongLiked ? 'fill-current' : ''
-                  } ${isLiking ? 'animate-pulse' : ''}`} 
-                />
-              </button>
+      <div className="hidden sm:flex items-center justify-between w-full max-w-7xl mx-auto px-4">
+        {/* Left: Song Info */}
+        <div className="flex items-center space-x-3 min-w-0 flex-1">
+          <div className="relative group">
+            {isPlaceholder ? (
+              <div className="w-12 h-12 rounded-lg flex items-center justify-center bg-gradient-to-br from-purple-600/20 to-pink-600/20 border border-white/10">
+                <Music className="w-6 h-6 text-white/60" />
+              </div>
+            ) : (
+              <img
+                src={song.thumbnail}
+                alt={song.title}
+                className="w-12 h-12 rounded-lg object-cover shadow-lg border border-white/20"
+              />
             )}
           </div>
+          
+          <div className="min-w-0 flex-1">
+            <h3 className={`font-medium text-sm truncate ${isPlaceholder ? 'text-gray-400' : 'text-white'}`}>
+              {song.title}
+            </h3>
+            <p className={`text-xs truncate ${isPlaceholder ? 'text-gray-600' : 'text-gray-300'}`}>
+              {song.artist}
+            </p>
+          </div>
 
-          {/* Playback Controls - Center Section */}
-          <div className="flex flex-col items-center justify-center flex-2 max-w-2xl px-6">
-            {/* Control Buttons */}
-            <div className="flex items-center space-x-4 mb-2">
-              <button
-                onClick={playPrevious}
-                className={`group rounded-full p-2 transition-all duration-300 ${
-                  isPlaceholder 
-                    ? 'opacity-40 cursor-not-allowed' 
-                    : 'hover:bg-white/10 hover:scale-110 active:scale-95'
-                } text-gray-300 hover:text-white focus:outline-none`}
-                aria-label="Previous"
-                disabled={isPlaceholder}
-              >
-                <SkipBack className="w-5 h-5 transition-transform group-hover:-translate-x-0.5" />
-              </button>
+          {/* Like Button */}
+          {isAuthenticated && (
+            <button
+              onClick={handleLikeToggle}
+              disabled={isPlaceholder || isLiking}
+              className={`p-2 rounded-full transition-all duration-200 ${
+                isPlaceholder || isLiking
+                  ? 'opacity-40 cursor-not-allowed' 
+                  : isCurrentSongLiked
+                  ? 'text-red-500 hover:text-red-400 hover:bg-red-500/10'
+                  : 'text-gray-300 hover:text-red-500 hover:bg-white/10'
+              }`}
+              title={isCurrentSongLiked ? 'Remove from Liked Songs' : 'Add to Liked Songs'}
+            >
+              <Heart 
+                className={`w-5 h-5 transition-all duration-200 ${
+                  isCurrentSongLiked ? 'fill-current' : ''
+                } ${isLiking ? 'animate-pulse' : ''}`} 
+              />
+            </button>
+          )}
+        </div>
 
-              <button
-                onClick={togglePlay}
-                className={`group rounded-full p-2 transition-all duration-300 ${
-                  isPlaceholder 
-                    ? 'opacity-40 cursor-not-allowed' 
-                    : 'hover:bg-white/10 hover:scale-110 active:scale-95'
-                } text-gray-300 hover:text-white focus:outline-none`}
-                aria-label={isPlaying ? 'Pause' : 'Play'}
-                disabled={isPlaceholder}
-              >
-                {isPlaying ? (
-                  <Pause className="w-5 h-5 transition-transform group-hover:scale-110" />
-                ) : (
-                  <Play className="w-5 h-5 transition-transform group-hover:scale-110" />
-                )}
-              </button>
+        {/* Center: Playback Controls */}
+        <div className="flex flex-col items-center space-y-2 flex-shrink-0">
+          {/* Control Buttons */}
+          <div className="flex items-center space-x-6">
+            <button
+              onClick={playPrevious}
+              className={`p-2 rounded-full transition-all duration-200 ${
+                isPlaceholder 
+                  ? 'opacity-40 cursor-not-allowed' 
+                  : 'text-gray-300 hover:text-white hover:bg-white/10'
+              }`}
+              disabled={isPlaceholder}
+              aria-label="Previous track"
+            >
+              <SkipBack className="w-5 h-5" />
+            </button>
 
-              <button
-                onClick={playNext}
-                className={`group rounded-full p-2 transition-all duration-300 ${
-                  isPlaceholder 
-                    ? 'opacity-40 cursor-not-allowed' 
-                    : 'hover:bg-white/10 hover:scale-110 active:scale-95'
-                } text-gray-300 hover:text-white focus:outline-none`}
-                aria-label="Next"
-                disabled={isPlaceholder}
-              >
-                <SkipForward className="w-5 h-5 transition-transform group-hover:translate-x-0.5" />
-              </button>
-            </div>
+            <button
+              onClick={togglePlay}
+              className={`p-3 rounded-full transition-all duration-200 ${
+                isPlaceholder 
+                  ? 'opacity-40 cursor-not-allowed bg-gray-600' 
+                  : 'bg-white text-black hover:bg-gray-100 hover:scale-105'
+              }`}
+              disabled={isPlaceholder}
+              aria-label={isPlaying ? 'Pause' : 'Play'}
+            >
+              {isPlaying ? (
+                <Pause className="w-5 h-5" />
+              ) : (
+                <Play className="w-5 h-5 translate-x-0.5" />
+              )}
+            </button>
 
-            {/* Volume Controls */}
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => setVolume(volume - 10)}
-                className={`group rounded-full p-2 transition-all duration-300 ${
-                  volume === 0 
-                    ? 'opacity-40 cursor-not-allowed' 
-                    : 'hover:bg-white/10 hover:scale-110 active:scale-95'
-                } text-gray-300 hover:text-white focus:outline-none`}
-                aria-label="Volume down"
-                disabled={volume === 0}
-              >
-                <Volume1 className="w-5 h-5 transition-transform group-hover:scale-110" />
-              </button>
+            <button
+              onClick={playNext}
+              className={`p-2 rounded-full transition-all duration-200 ${
+                isPlaceholder 
+                  ? 'opacity-40 cursor-not-allowed' 
+                  : 'text-gray-300 hover:text-white hover:bg-white/10'
+              }`}
+              disabled={isPlaceholder}
+              aria-label="Next track"
+            >
+              <SkipForward className="w-5 h-5" />
+            </button>
+          </div>
 
+          {/* Progress Bar */}
+          <div className="w-full max-w-lg">
+            <ProgressBar
+              size="small"
+              showTime={false}
+              showHoverPreview={true}
+              className="w-full"
+            />
+          </div>
+        </div>
+
+        {/* Right: Volume and Timestamp */}
+        <div className="flex items-center space-x-4 flex-1 justify-end">
+          {/* Timestamp */}
+          <div className="flex items-center space-x-1 text-xs text-gray-400 min-w-0">
+            <span>{formatTime(currentTime)}</span>
+            <span>/</span>
+            <span>{formatTime(duration)}</span>
+          </div>
+
+          {/* Volume Control */}
+          <div className="flex items-center space-x-2">
+            <Volume2 className="w-4 h-4 text-gray-400" />
+            <div className="relative group">
               <input
                 type="range"
                 min="0"
                 max="100"
                 value={volume}
                 onChange={(e) => setVolume(parseInt(e.target.value))}
-                className="w-24 h-1 rounded-full bg-white/20 cursor-pointer"
+                className="w-20 h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer slider"
+                style={{
+                  background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${volume}%, #4b5563 ${volume}%, #4b5563 100%)`
+                }}
               />
-
-              <button
-                onClick={() => setVolume(volume + 10)}
-                className={`group rounded-full p-2 transition-all duration-300 ${
-                  volume === 100 
-                    ? 'opacity-40 cursor-not-allowed' 
-                    : 'hover:bg-white/10 hover:scale-110 active:scale-95'
-                } text-gray-300 hover:text-white focus:outline-none`}
-                aria-label="Volume up"
-                disabled={volume === 100}
-              >
-                <Volume2 className="w-5 h-5 transition-transform group-hover:scale-110" />
-              </button>
             </div>
-          </div>
-
-          {/* Timestamp Display */}
-          <div className="flex items-center space-x-2 text-xs text-gray-400">
-            <span>{formatTime(currentTime)}</span>
-            <span>/</span>
-            <span>{formatTime(duration)}</span>
           </div>
         </div>
       </div>
