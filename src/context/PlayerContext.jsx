@@ -22,6 +22,7 @@ const loadPersistedPlayerState = () => {
         currentTime: 0,
         isBuffering: false,
         hasError: false,
+        isRestoringState: true, // Flag to indicate we're restoring state
       };
     }
   } catch (error) {
@@ -56,6 +57,8 @@ const initialState = {
   currentTime: 0,
   isBuffering: false,
   hasError: false,
+  isRestoringState: false,
+  lastLoadedSongId: null, // Track the last loaded song to prevent unnecessary reloads
   ...loadPersistedPlayerState(), // Load persisted state
 };
 
@@ -68,6 +71,7 @@ function playerReducer(state, action) {
         ...state,
         queue: [...state.queue, action.payload],
         currentIndex: state.currentIndex === -1 ? 0 : state.currentIndex,
+        isRestoringState: false,
       };
       break;
     case 'SET_QUEUE':
@@ -75,6 +79,7 @@ function playerReducer(state, action) {
         ...state,
         queue: action.payload,
         currentIndex: action.payload.length > 0 ? 0 : -1,
+        isRestoringState: false,
       };
       break;
     case 'REMOVE_FROM_QUEUE':
@@ -90,12 +95,14 @@ function playerReducer(state, action) {
         ...state,
         queue: newQueue,
         currentIndex: newCurrentIndex,
+        isRestoringState: false,
       };
       break;
     case 'SET_CURRENT_INDEX':
       newState = {
         ...state,
         currentIndex: action.payload,
+        isRestoringState: false,
       };
       break;
     case 'SET_PLAYING':
@@ -149,10 +156,23 @@ function playerReducer(state, action) {
         currentTime: action.payload,
       };
       break;
+    case 'SET_LAST_LOADED_SONG_ID':
+      newState = {
+        ...state,
+        lastLoadedSongId: action.payload,
+      };
+      break;
+    case 'CLEAR_RESTORING_FLAG':
+      newState = {
+        ...state,
+        isRestoringState: false,
+      };
+      break;
     case 'CLEAR_QUEUE':
       newState = {
         ...initialState,
         volume: state.volume, // Keep volume setting
+        lastLoadedSongId: null,
       };
       break;
     default:
@@ -174,6 +194,17 @@ export function PlayerProvider({ children }) {
   const timeUpdateIntervalRef = useRef(null);
   const volumeTimeoutRef = useRef(null);
   const pendingVolumeRef = useRef(null);
+
+  // Clear restoring flag after initial mount
+  useEffect(() => {
+    if (state.isRestoringState) {
+      // Give time for any initial effects to run, then clear the flag
+      const timer = setTimeout(() => {
+        dispatch({ type: 'CLEAR_RESTORING_FLAG' });
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [state.isRestoringState]);
 
   // Add page visibility handling for player state
   useEffect(() => {
@@ -451,14 +482,21 @@ export function PlayerProvider({ children }) {
     };
   }, [state.isPlaying, state.duration, safePlayerCall]);
 
-  // Handle song changes with better error handling
+  // Handle song changes with better error handling - FIXED to prevent unnecessary reloads
   useEffect(() => {
     if (
       state.currentIndex >= 0 &&
       state.queue[state.currentIndex] &&
-      isPlayerReadyRef.current
+      isPlayerReadyRef.current &&
+      !state.isRestoringState // Don't reload if we're just restoring state
     ) {
       const currentSong = state.queue[state.currentIndex];
+      
+      // Check if this song is already loaded to prevent unnecessary reloads
+      if (currentSong.id === state.lastLoadedSongId) {
+        console.log('Song already loaded, skipping reload:', currentSong.title);
+        return;
+      }
       
       // Reset current time when switching songs
       dispatch({ type: 'SET_CURRENT_TIME', payload: 0 });
@@ -469,6 +507,9 @@ export function PlayerProvider({ children }) {
         try {
           console.log('Loading new video:', currentSong.title);
           safePlayerCall('loadVideoById', currentSong.id);
+          
+          // Track the loaded song ID
+          dispatch({ type: 'SET_LAST_LOADED_SONG_ID', payload: currentSong.id });
           
           // Get duration after loading
           setTimeout(() => {
@@ -491,7 +532,7 @@ export function PlayerProvider({ children }) {
         }
       }
     }
-  }, [state.currentIndex, state.queue, safePlayerCall]); // Removed state.isPlaying to prevent unnecessary reloads
+  }, [state.currentIndex, state.queue, state.isRestoringState, state.lastLoadedSongId, safePlayerCall]);
 
   // Cleanup on unmount
   useEffect(() => {
