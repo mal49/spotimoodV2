@@ -482,57 +482,24 @@ export function PlayerProvider({ children }) {
     };
   }, [state.isPlaying, state.duration, safePlayerCall]);
 
-  // Handle song changes with better error handling - FIXED to prevent unnecessary reloads
+  // Handle song changes with better error handling - SIMPLIFIED since YouTubePlayer handles changes
   useEffect(() => {
     if (
       state.currentIndex >= 0 &&
       state.queue[state.currentIndex] &&
-      isPlayerReadyRef.current &&
       !state.isRestoringState // Don't reload if we're just restoring state
     ) {
       const currentSong = state.queue[state.currentIndex];
       
-      // Check if this song is already loaded to prevent unnecessary reloads
-      if (currentSong.id === state.lastLoadedSongId) {
-        console.log('Song already loaded, skipping reload:', currentSong.title);
-        return;
-      }
-      
-      // Reset current time when switching songs
-      dispatch({ type: 'SET_CURRENT_TIME', payload: 0 });
-      dispatch({ type: 'SET_ERROR', payload: false });
-      
-      // Load the new video
-      if (currentSong.id) {
-        try {
-          console.log('Loading new video:', currentSong.title);
-          safePlayerCall('loadVideoById', currentSong.id);
-          
-          // Track the loaded song ID
-          dispatch({ type: 'SET_LAST_LOADED_SONG_ID', payload: currentSong.id });
-          
-          // Get duration after loading
-          setTimeout(() => {
-            const duration = safePlayerCall('getDuration');
-            if (duration && duration > 0) {
-              dispatch({ type: 'SET_DURATION', payload: duration });
-              console.log('Video loaded - Duration set:', duration);
-            }
-          }, 1000);
-          
-          // If we were playing, continue playing the new song
-          if (state.isPlaying) {
-            setTimeout(() => {
-              safePlayerCall('playVideo');
-            }, 100);
-          }
-        } catch (error) {
-          console.error('Error loading video:', error);
-          dispatch({ type: 'SET_ERROR', payload: true });
-        }
+      // Just update the last loaded song ID and reset time - let YouTubePlayer handle loading
+      if (currentSong.id !== state.lastLoadedSongId) {
+        console.log('Song change detected in PlayerContext:', currentSong.title);
+        dispatch({ type: 'SET_LAST_LOADED_SONG_ID', payload: currentSong.id });
+        dispatch({ type: 'SET_CURRENT_TIME', payload: 0 });
+        dispatch({ type: 'SET_ERROR', payload: false });
       }
     }
-  }, [state.currentIndex, state.queue, state.isRestoringState, state.lastLoadedSongId, safePlayerCall]);
+  }, [state.currentIndex, state.queue, state.isRestoringState, state.lastLoadedSongId]);
 
   // Cleanup on unmount
   useEffect(() => {
