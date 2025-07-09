@@ -1,5 +1,7 @@
 import React from 'react';
 import { usePlayer } from '../../context/PlayerContext';
+import { usePlaylist } from '../../context/PlaylistContext';
+import { useAuth } from '../../context/AuthContext';
 import YouTubePlayer from '../YouTubePlayer';
 import { 
   Music, 
@@ -10,7 +12,8 @@ import {
   Volume2, 
   Volume1, 
   Volume, 
-  VolumeX 
+  VolumeX,
+  Heart
 } from 'lucide-react';
 
 // Now Playing Bar Component
@@ -29,6 +32,92 @@ export default function NowPlayingBar() {
     handlePlayerReady,
     handlePlayerStateChange,
   } = usePlayer();
+
+  const {
+    playlists,
+    createPlaylist,
+    addSongToPlaylist,
+    removeSongFromPlaylist,
+    fetchPlaylists,
+  } = usePlaylist();
+
+  const { isAuthenticated } = useAuth();
+
+  // Check if current song is liked (in Liked Songs playlist)
+  const likedSongsPlaylist = playlists.find(playlist => 
+    playlist.name === 'Liked Songs' || playlist.title === 'Liked Songs'
+  );
+  
+  const isCurrentSongLiked = React.useMemo(() => {
+    if (!currentSong || !likedSongsPlaylist || !likedSongsPlaylist.songs) {
+      return false;
+    }
+    return likedSongsPlaylist.songs.some(song => 
+      song.youtube_id === currentSong.id || song.id === currentSong.id
+    );
+  }, [currentSong, likedSongsPlaylist]);
+
+  const [isLiking, setIsLiking] = React.useState(false);
+
+  const handleLikeToggle = async () => {
+    if (!currentSong || !isAuthenticated || isLiking) return;
+
+    setIsLiking(true);
+    try {
+      let targetPlaylist = likedSongsPlaylist;
+      
+      // Create "Liked Songs" playlist if it doesn't exist
+      if (!targetPlaylist) {
+        console.log('Creating Liked Songs playlist...');
+        targetPlaylist = await createPlaylist({
+          name: 'Liked Songs',
+          description: 'Songs you loved',
+          is_public: false
+        });
+        
+        if (!targetPlaylist) {
+          console.error('Failed to create Liked Songs playlist');
+          return;
+        }
+        
+        // Refresh playlists to get the updated list
+        await fetchPlaylists();
+      }
+
+      if (isCurrentSongLiked) {
+        // Remove from liked songs
+        console.log('Removing song from Liked Songs...');
+        // Find the song in the playlist to get its ID
+        const songInPlaylist = targetPlaylist.songs?.find(song => 
+          song.youtube_id === currentSong.id || song.id === currentSong.id
+        );
+        
+        if (songInPlaylist) {
+          await removeSongFromPlaylist(targetPlaylist.id, songInPlaylist.id);
+        }
+      } else {
+        // Add to liked songs
+        console.log('Adding song to Liked Songs...');
+        const songData = {
+          youtube_id: currentSong.id,
+          title: currentSong.title,
+          artist: currentSong.artist,
+          duration: currentSong.duration || 'N/A',
+          thumbnail: currentSong.thumbnail,
+          channelTitle: currentSong.artist
+        };
+        
+        await addSongToPlaylist(targetPlaylist.id, songData);
+      }
+      
+      // Refresh playlists to update the liked status
+      await fetchPlaylists();
+    } catch (error) {
+      console.error('Error toggling like status:', error);
+    } finally {
+      setIsLiking(false);
+    }
+  };
 
   const formatTime = (seconds) => {
     const minutes = Math.floor(seconds / 60);
@@ -120,6 +209,28 @@ export default function NowPlayingBar() {
 
           {/* Controls */}
           <div className="flex items-center space-x-2 flex-shrink-0">
+            {/* Like Button - Mobile */}
+            {isAuthenticated && (
+              <button
+                onClick={handleLikeToggle}
+                disabled={isPlaceholder || isLiking}
+                className={`p-2 rounded-full transition-all duration-200 ${
+                  isPlaceholder || isLiking
+                    ? 'opacity-40 cursor-not-allowed' 
+                    : isCurrentSongLiked
+                    ? 'text-red-500 hover:text-red-400 hover:bg-red-500/10 active:scale-95'
+                    : 'text-gray-300 hover:text-red-500 hover:bg-white/10 active:scale-95'
+                }`}
+                title={isCurrentSongLiked ? 'Remove from Liked Songs' : 'Add to Liked Songs'}
+              >
+                <Heart 
+                  className={`w-4 h-4 transition-all duration-200 ${
+                    isCurrentSongLiked ? 'fill-current' : ''
+                  }`} 
+                />
+              </button>
+            )}
+
             <button
               onClick={togglePlay}
               className={`p-2.5 rounded-full transition-all duration-200 ${
@@ -198,6 +309,28 @@ export default function NowPlayingBar() {
                 {song.artist}
               </p>
             </div>
+
+            {/* Like Button - Desktop (next to song info) */}
+            {isAuthenticated && (
+              <button
+                onClick={handleLikeToggle}
+                disabled={isPlaceholder || isLiking}
+                className={`p-2 rounded-full transition-all duration-200 ${
+                  isPlaceholder || isLiking
+                    ? 'opacity-40 cursor-not-allowed' 
+                    : isCurrentSongLiked
+                    ? 'text-red-500 hover:text-red-400 hover:bg-red-500/10 hover:scale-110 active:scale-95'
+                    : 'text-gray-300 hover:text-red-500 hover:bg-white/10 hover:scale-110 active:scale-95'
+                }`}
+                title={isCurrentSongLiked ? 'Remove from Liked Songs' : 'Add to Liked Songs'}
+              >
+                <Heart 
+                  className={`w-5 h-5 transition-all duration-200 ${
+                    isCurrentSongLiked ? 'fill-current' : ''
+                  } ${isLiking ? 'animate-pulse' : ''}`} 
+                />
+              </button>
+            )}
           </div>
 
           {/* Playback Controls - Center Section */}
