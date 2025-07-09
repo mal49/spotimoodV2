@@ -42,8 +42,19 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const YOUTUBE_API_KEYS = [
     process.env.YOUTUBE_API_KEY,
     process.env.YOUTUBE_API_KEY_2,
-    process.env.YOUTUBE_API_KEY_3
+    process.env.YOUTUBE_API_KEY_3,
+    process.env.YOUTUBE_API_KEY_4
 ].filter(key => key); // Remove any undefined keys
+
+// Debug logging for production
+console.log('YouTube API Keys loaded:', {
+    totalKeys: YOUTUBE_API_KEYS.length,
+    keysPresent: YOUTUBE_API_KEYS.map((key, index) => ({
+        index,
+        hasKey: !!key,
+        keyPrefix: key ? key.substring(0, 10) + '...' : 'missing'
+    }))
+});
 
 // Remove alternative API keys and integrations
 // const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID;
@@ -115,6 +126,60 @@ const incrementKeyUsage = (keyIndex) => {
         usage.dailyQuotaUsed += 1;
         keyUsageMap.set(keyIndex, usage);
     }
+};
+
+// Helper function to make YouTube API request with automatic key rotation
+const makeYouTubeRequest = async (requestFunction, maxRetries = YOUTUBE_API_KEYS.length) => {
+    let lastError = null;
+    let attempts = 0;
+    
+    while (attempts < maxRetries) {
+        try {
+            const apiKey = getNextAvailableKey();
+            const youtube = createYouTubeAPI(apiKey);
+            
+            console.log(`YouTube API request attempt ${attempts + 1}/${maxRetries} using key index ${currentKeyIndex}`);
+            
+            const result = await requestFunction(youtube);
+            
+            // Increment quota usage on success
+            incrementKeyUsage(currentKeyIndex);
+            
+            return result;
+        } catch (error) {
+            lastError = error;
+            attempts++;
+            
+            console.error(`YouTube API request failed (attempt ${attempts}):`, error.message);
+            
+            // Handle quota exceeded error
+            if (error.response?.status === 403 && 
+                error.response?.data?.error?.errors?.[0]?.reason === 'quotaExceeded') {
+                
+                console.log(`Quota exceeded for key index ${currentKeyIndex}, marking as exceeded`);
+                markKeyQuotaExceeded(currentKeyIndex);
+                
+                // Check if we have any available keys left
+                const hasAvailableKeys = Array.from(keyUsageMap.values()).some(usage => 
+                    !usage.quotaExceeded || Date.now() >= usage.resetTime
+                );
+                
+                if (!hasAvailableKeys) {
+                    console.log('All YouTube API keys have exceeded quota');
+                    break;
+                }
+                
+                // Continue to next iteration to try another key
+                continue;
+            }
+            
+            // For other errors, break the retry loop
+            break;
+        }
+    }
+    
+    // If we get here, all retries failed
+    throw lastError;
 };
 
 // Initialize YouTube API with key rotation
@@ -200,6 +265,29 @@ const checkRateLimit = (req, res, next) => {
 app.use('/api/search-music', checkRateLimit);
 app.use('/api/video/:videoId', checkRateLimit);
 
+// Debug endpoint to check API key status (remove in production)
+app.get('/api/debug/keys', (req, res) => {
+    res.json({
+        totalKeys: YOUTUBE_API_KEYS.length,
+        currentKeyIndex,
+        keyStatus: Array.from(keyUsageMap.entries()).map(([index, usage]) => ({
+            keyIndex: index,
+            hasKey: !!YOUTUBE_API_KEYS[index],
+            keyPrefix: YOUTUBE_API_KEYS[index] ? YOUTUBE_API_KEYS[index].substring(0, 10) + '...' : 'missing',
+            quotaExceeded: usage.quotaExceeded,
+            dailyQuotaUsed: usage.dailyQuotaUsed,
+            resetTime: usage.resetTime,
+            lastResetDate: usage.lastResetDate,
+            isAvailable: !usage.quotaExceeded || Date.now() >= usage.resetTime
+        })),
+        environment: {
+            NODE_ENV: process.env.NODE_ENV,
+            hasGeminiKey: !!process.env.GEMINI_API_KEY,
+            timestamp: new Date().toISOString()
+        }
+    });
+});
+
 // Enhanced YouTube search endpoint with proper error handling
 app.get('/api/search-music', async (req, res) => {
     const { query, pageToken, maxResults = 10 } = req.query;
@@ -233,11 +321,10 @@ app.get('/api/search-music', async (req, res) => {
             searchParams.pageToken = pageToken;
         }
 
-        const response = await createYouTubeAPI(getNextAvailableKey()).search.list(searchParams);
+        const response = await makeYouTubeRequest(async (youtube) => {
+            return youtube.search.list(searchParams);
+        });
 
-        // Increment quota usage
-        incrementKeyUsage(currentKeyIndex);
-        
         // Transform response according to application needs
         const videos = response.data.items?.map(item => ({
             id: item.id.videoId,
@@ -263,24 +350,12 @@ app.get('/api/search-music', async (req, res) => {
         if (error.response) {
             const { status, data } = error.response;
             
-            // Handle quota exceeded error
+            // Handle quota exceeded error (all keys exhausted)
             if (status === 403 && data.error?.errors?.[0]?.reason === 'quotaExceeded') {
-                // Mark current key as quota exceeded
-                markKeyQuotaExceeded(currentKeyIndex);
-                
-                // In the YouTube quota exceeded logic, just return the quota exceeded error, do not try alternatives or fallback
                 return res.status(429).json({
-                    error: 'YouTube API quota exceeded',
+                    error: 'All YouTube API keys have exceeded quota',
                     code: 'QUOTA_EXCEEDED',
-                    retryAfter: Math.ceil((Date.now() + (24 * 60 * 60 * 1000) - Date.now()) / 1000) // Show retry after 24 hours
-                });
-            }
-            
-            // Handle invalid API key
-            if (status === 400 && data.error?.errors?.[0]?.reason === 'keyInvalid') {
-                return res.status(401).json({
-                    error: 'Invalid YouTube API key',
-                    code: 'INVALID_API_KEY'
+                    retryAfter: 24 * 60 * 60
                 });
             }
             
@@ -312,14 +387,13 @@ app.get('/api/video/:videoId', async (req, res) => {
     }
 
     try {
-        const response = await createYouTubeAPI(getNextAvailableKey()).videos.list({
-            part: 'snippet,contentDetails,status,statistics',
-            id: videoId,
-            fields: 'items(id,snippet(title,description,channelTitle,thumbnails/high/url,publishedAt),contentDetails/duration,status(embeddable,privacyStatus),statistics(viewCount,likeCount))'
+        const response = await makeYouTubeRequest(async (youtube) => {
+            return youtube.videos.list({
+                part: 'snippet,contentDetails,status,statistics',
+                id: videoId,
+                fields: 'items(id,snippet(title,description,channelTitle,thumbnails/high/url,publishedAt),contentDetails/duration,status(embeddable,privacyStatus),statistics(viewCount,likeCount))'
+            });
         });
-
-        // Increment quota usage
-        incrementKeyUsage(currentKeyIndex);
 
         if (!response.data.items || response.data.items.length === 0) {
             console.log(`Video not found: ${videoId}`);
@@ -373,9 +447,17 @@ app.get('/api/video/:videoId', async (req, res) => {
         // Handle specific YouTube API errors
         if (error.response) {
             const { status, data } = error.response;
-            console.error('YouTube API Response:', data);
             
-            return res.status(status).json({ 
+            // Handle quota exceeded error (all keys exhausted)
+            if (status === 403 && data.error?.errors?.[0]?.reason === 'quotaExceeded') {
+                return res.status(429).json({
+                    error: 'All YouTube API keys have exceeded quota',
+                    code: 'QUOTA_EXCEEDED',
+                    retryAfter: 24 * 60 * 60
+                });
+            }
+            
+            return res.status(status).json({
                 error: 'YouTube API Error',
                 code: data.error?.errors?.[0]?.reason || 'API_ERROR',
                 details: data.error?.message || 'Unknown error'
@@ -426,11 +508,10 @@ app.get('/api/search-music-multi', async (req, res) => {
                 fields: 'items(id/videoId,snippet(title,channelTitle,thumbnails/high/url,publishedAt)),nextPageToken,prevPageToken,pageInfo/totalResults'
             };
 
-            const response = await createYouTubeAPI(getNextAvailableKey()).search.list(searchParams);
+            const response = await makeYouTubeRequest(async (youtube) => {
+                return youtube.search.list(searchParams);
+            });
 
-            // Increment quota usage
-            incrementKeyUsage(currentKeyIndex);
-            
             // Transform response according to application needs
             results = response.data.items?.map(item => ({
                 id: item.id.videoId,
@@ -468,15 +549,12 @@ app.get('/api/search-music-multi', async (req, res) => {
         if (error.response) {
             const { status, data } = error.response;
             
-            // Handle quota exceeded error
+            // Handle quota exceeded error (all keys exhausted)
             if (status === 403 && data.error?.errors?.[0]?.reason === 'quotaExceeded') {
-                // Mark current key as quota exceeded
-                markKeyQuotaExceeded(currentKeyIndex);
-                
                 return res.status(429).json({
-                    error: 'YouTube API quota exceeded',
+                    error: 'All YouTube API keys have exceeded quota',
                     code: 'QUOTA_EXCEEDED',
-                    retryAfter: Math.ceil((Date.now() + (24 * 60 * 60 * 1000) - Date.now()) / 1000) // Show retry after 24 hours
+                    retryAfter: 24 * 60 * 60
                 });
             }
             
@@ -592,15 +670,17 @@ app.post('/api/generate-mood-playlist', async (req, res) => {
                     const searchQuery = `${song.title} ${song.artist}`.trim();
                     
                     // Improved YouTube search with better parameters
-                    const searchResponse = await createYouTubeAPI(getNextAvailableKey()).search.list({
-                        part: 'snippet',
-                        q: searchQuery,
-                        type: 'video',
-                        videoCategoryId: '10', // Music category
-                        maxResults: 1,
-                        order: 'relevance',
-                        videoEmbeddable: 'true', // Only embeddable videos
-                        fields: 'items(id/videoId,snippet(title,channelTitle,thumbnails/high/url))'
+                    const searchResponse = await makeYouTubeRequest(async (youtube) => {
+                        return youtube.search.list({
+                            part: 'snippet',
+                            q: searchQuery,
+                            type: 'video',
+                            videoCategoryId: '10', // Music category
+                            maxResults: 1,
+                            order: 'relevance',
+                            videoEmbeddable: 'true', // Only embeddable videos
+                            fields: 'items(id/videoId,snippet(title,channelTitle,thumbnails/high/url))'
+                        });
                     });
 
                     const videoData = searchResponse.data.items && searchResponse.data.items.length > 0 
