@@ -24,6 +24,7 @@ import AboutPage from './components/pages/aboutPage.jsx'
 import ServicePage from './components/pages/servicePage.jsx'
 import ContactPage from './components/pages/contactPage.jsx'
 import PaymentPage from './components/pages/paymentPage.jsx'
+import ProfileSettings from './components/ProfileSettings.jsx'
 import FeedbackModal from './components/UI/FeedbackModal.jsx'
 
 function MainLayout({ children }) {
@@ -118,6 +119,7 @@ function AppContent() {
               <Route path="/subscription" element={<SubscriptionPage />} />
               <Route path="/payment" element={<PaymentPage />} />
               <Route path="/feedback" element={<FeedbackPage />} />
+              <Route path="/profile/settings" element={<ProfileSettings />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </MainLayout>

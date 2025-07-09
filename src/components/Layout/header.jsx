@@ -127,8 +127,7 @@ export default function Header({ onToggleMobileSidebar }) {
                                     <button
                                         onClick={() => {
                                             setShowUserMenu(false);
-                                            // TODO: Navigate to profile/settings page
-                                            console.log('Navigate to profile settings');
+                                            navigate('/profile/settings');
                                         }}
                                         className="w-full flex items-center space-x-3 px-4 py-2 text-text-medium hover:text-text-light hover:bg-dark-hover transition-colors"
                                     >
