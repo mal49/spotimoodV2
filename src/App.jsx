@@ -23,6 +23,7 @@ import FeedbackPage from './components/pages/feedbackPage.jsx'
 import AboutPage from './components/pages/aboutPage.jsx'
 import ServicePage from './components/pages/servicePage.jsx'
 import ContactPage from './components/pages/contactPage.jsx'
+import PaymentPage from './components/pages/paymentPage.jsx'
 import FeedbackModal from './components/UI/FeedbackModal.jsx'
 
 function MainLayout({ children }) {
@@ -115,6 +116,7 @@ function AppContent() {
               <Route path="/playlist/:playlistId" element={<PlaylistDetail />} />
               <Route path="/search" element={<SearchResults />} />
               <Route path="/subscription" element={<SubscriptionPage />} />
+              <Route path="/payment" element={<PaymentPage />} />
               <Route path="/feedback" element={<FeedbackPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

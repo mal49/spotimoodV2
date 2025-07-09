@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Button from '../UI/Button.jsx';
 import { Music, Brain, Headphones, Check } from 'lucide-react';
 
 export default function SubscriptionPage() {
+    const navigate = useNavigate();
     const [selectedPlan, setSelectedPlan] = useState(null);
 
     const plans = [
@@ -65,8 +67,14 @@ export default function SubscriptionPage() {
 
     const handleSelectPlan = (planId) => {
         setSelectedPlan(planId);
-        // TODO: Integrate with actual payment processing
-        console.log(`Selected plan: ${planId}`);
+        
+        if (planId === 'premium' || planId === 'family') {
+            // Navigate to payment page with plan parameter
+            navigate(`/payment?plan=${planId}`);
+        } else {
+            // For free plan, just log (or handle differently)
+            console.log(`Selected plan: ${planId}`);
+        }
     };
 
     return (
