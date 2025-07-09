@@ -996,7 +996,7 @@ app.post('/api/generate-mood-playlist', async (req, res) => {
                             topP: 0.9,
                             maxOutputTokens: 50,
                         }
-                    };
+                    }; //how request is processed
                     
                     const titleResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
                         method: 'POST',

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useReducer, useRef, useEffect, useCallback } from 'react';
+import { userInteractionManager, isMobileDevice, prepareAudioContextForMobile } from '../lib/mobileUtils';
 
 const PlayerContext = createContext();
 
@@ -13,6 +14,8 @@ const initialState = {
   currentTime: 0,
   isBuffering: false,
   hasError: false,
+  hasUserInteracted: false,
+  isMobile: false,
 };
 
 function playerReducer(state, action) {
@@ -91,9 +94,21 @@ function playerReducer(state, action) {
         ...state,
         currentTime: action.payload,
       };
+    case 'SET_USER_INTERACTED':
+      return {
+        ...state,
+        hasUserInteracted: action.payload,
+      };
+    case 'SET_IS_MOBILE':
+      return {
+        ...state,
+        isMobile: action.payload,
+      };
     case 'CLEAR_QUEUE':
       return {
         ...initialState,
+        hasUserInteracted: state.hasUserInteracted,
+        isMobile: state.isMobile,
       };
     default:
       return state;
@@ -105,6 +120,29 @@ export function PlayerProvider({ children }) {
   const playerRef = useRef(null);
   const isPlayerReadyRef = useRef(false);
   const timeUpdateIntervalRef = useRef(null);
+
+  // Initialize mobile detection and user interaction tracking
+  useEffect(() => {
+    const isMobile = isMobileDevice();
+    dispatch({ type: 'SET_IS_MOBILE', payload: isMobile });
+    
+    // Set initial user interaction state
+    dispatch({ type: 'SET_USER_INTERACTED', payload: userInteractionManager.getHasUserInteracted() });
+    
+    // Listen for user interaction updates
+    const cleanup = userInteractionManager.onUserInteraction(() => {
+      dispatch({ type: 'SET_USER_INTERACTED', payload: true });
+      
+      // Prepare audio context for mobile after user interaction
+      if (isMobile) {
+        prepareAudioContextForMobile().then(() => {
+          console.log('Audio context prepared for mobile playback');
+        });
+      }
+    });
+
+    return cleanup;
+  }, []);
 
   // Safe player function wrapper with improved error handling
   const safePlayerCall = useCallback((method, ...args) => {
@@ -230,15 +268,34 @@ export function PlayerProvider({ children }) {
     });
   }, []);
 
-  const togglePlay = useCallback(() => {
+  const togglePlay = useCallback(async () => {
     if (!state.queue.length || state.currentIndex === -1) return;
+    
+    // Handle mobile user interaction requirement
+    if (state.isMobile && !state.hasUserInteracted) {
+      console.log('Mobile device detected, marking user interaction');
+      userInteractionManager.markUserInteracted();
+      
+      // Prepare audio context for mobile
+      await prepareAudioContextForMobile();
+      
+      // Small delay to let the interaction register
+      setTimeout(() => {
+        if (state.isPlaying) {
+          safePlayerCall('pauseVideo');
+        } else {
+          safePlayerCall('playVideo');
+        }
+      }, 100);
+      return;
+    }
     
     if (state.isPlaying) {
       safePlayerCall('pauseVideo');
     } else {
       safePlayerCall('playVideo');
     }
-  }, [state.queue.length, state.currentIndex, state.isPlaying, safePlayerCall]);
+  }, [state.queue.length, state.currentIndex, state.isPlaying, state.isMobile, state.hasUserInteracted, safePlayerCall]);
 
   const setVolume = useCallback((volume) => {
     const clampedVolume = Math.max(0, Math.min(100, volume));
@@ -355,6 +412,8 @@ export function PlayerProvider({ children }) {
     currentTime: state.currentTime,
     isBuffering: state.isBuffering,
     hasError: state.hasError,
+    hasUserInteracted: state.hasUserInteracted,
+    isMobile: state.isMobile,
     
     // Actions
     addToQueue: (song) => dispatch({ type: 'ADD_TO_QUEUE', payload: song }),

@@ -26,6 +26,7 @@ export default function PlaybackControl({
     playPrevious,
     toggleShuffle,
     setRepeatMode,
+    isMobile,
   } = usePlayer();
 
   const isDisabled = !currentSong;
@@ -65,23 +66,36 @@ export default function PlaybackControl({
     },
   };
 
+  // Mobile-specific size adjustments
+  const mobileClasses = isMobile ? {
+    container: 'space-x-6',
+    icon: size === 'small' ? 'w-5 h-5' : size === 'large' ? 'w-7 h-7' : 'w-6 h-6',
+    mainButton: size === 'small' ? 'p-3' : size === 'large' ? 'p-5' : 'p-4',
+    sideButton: size === 'small' ? 'p-2.5' : size === 'large' ? 'p-3.5' : 'p-3',
+  } : sizeClasses[size];
+
+  const buttonBaseClasses = "rounded-full transition-all duration-300 focus:outline-none touch-target";
+  const mobileButtonClasses = isMobile ? "active:scale-95" : "hover:scale-110 active:scale-95";
+  const tapHighlightStyle = { WebkitTapHighlightColor: 'transparent' };
+
   return (
-    <div className={`flex items-center justify-center ${sizeClasses[size].container} ${className}`}>
+    <div className={`flex items-center justify-center ${mobileClasses.container} ${className}`}>
       {/* Shuffle Button */}
       {showShuffle && (
         <button
           onClick={toggleShuffle}
-          className={`${sizeClasses[size].sideButton} rounded-full transition-all duration-300 focus:outline-none group ${
+          className={`${mobileClasses.sideButton} ${buttonBaseClasses} ${mobileButtonClasses} ${
             isDisabled 
               ? 'opacity-40 cursor-not-allowed' 
               : isShuffle 
                 ? 'text-purple-400 hover:text-purple-300 bg-purple-500/20 hover:bg-purple-500/30' 
                 : 'text-gray-400 hover:text-white hover:bg-white/10'
-          } ${!isDisabled ? 'hover:scale-110 active:scale-95' : ''}`}
+          }`}
+          style={tapHighlightStyle}
           disabled={isDisabled}
           aria-label={isShuffle ? 'Disable shuffle' : 'Enable shuffle'}
         >
-          <Shuffle className={`${sizeClasses[size].icon} transition-all duration-300 ${
+          <Shuffle className={`${mobileClasses.icon} transition-all duration-300 ${
             isShuffle ? 'drop-shadow-sm' : ''
           }`} />
         </button>
@@ -90,38 +104,42 @@ export default function PlaybackControl({
       {/* Previous Button */}
       <button
         onClick={playPrevious}
-        className={`${sizeClasses[size].sideButton} rounded-full transition-all duration-300 focus:outline-none group ${
+        className={`${mobileClasses.sideButton} ${buttonBaseClasses} ${mobileButtonClasses} ${
           isDisabled 
             ? 'opacity-40 cursor-not-allowed text-gray-500' 
             : 'text-gray-300 hover:text-white hover:bg-white/10'
-        } ${!isDisabled ? 'hover:scale-110 active:scale-95' : ''}`}
+        }`}
+        style={tapHighlightStyle}
         disabled={isDisabled}
         aria-label="Previous track"
       >
-        <SkipBack className={`${sizeClasses[size].icon} transition-transform group-hover:-translate-x-0.5`} />
+        <SkipBack className={`${mobileClasses.icon} transition-transform group-hover:-translate-x-0.5`} />
       </button>
 
       {/* Play/Pause Button */}
       <button
         onClick={togglePlay}
-        className={`${sizeClasses[size].mainButton} rounded-full transition-all duration-300 focus:outline-none group relative ${
+        className={`${mobileClasses.mainButton} ${buttonBaseClasses} ${mobileButtonClasses} relative ${
           isDisabled 
             ? 'opacity-40 cursor-not-allowed bg-gray-600' 
             : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 shadow-lg hover:shadow-xl'
-        } text-white ${!isDisabled ? 'hover:scale-110 active:scale-95' : ''}`}
+        } text-white`}
+        style={tapHighlightStyle}
         disabled={isDisabled}
         aria-label={isPlaying ? 'Pause' : 'Play'}
       >
         {/* Glow effect */}
         {!isDisabled && (
-          <div className="absolute inset-0 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 opacity-0 group-hover:opacity-30 blur-lg transition-opacity duration-300"></div>
+          <div className={`absolute inset-0 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 opacity-0 transition-opacity duration-300 blur-lg ${
+            isMobile ? 'active:opacity-30' : 'group-hover:opacity-30'
+          }`}></div>
         )}
         
         <div className="relative">
           {isPlaying ? (
-            <Pause className={`${sizeClasses[size].icon} transition-all duration-300`} />
+            <Pause className={`${mobileClasses.icon} transition-all duration-300`} />
           ) : (
-            <Play className={`${sizeClasses[size].icon} translate-x-0.5 transition-all duration-300`} />
+            <Play className={`${mobileClasses.icon} translate-x-0.5 transition-all duration-300`} />
           )}
         </div>
       </button>
@@ -129,28 +147,30 @@ export default function PlaybackControl({
       {/* Next Button */}
       <button
         onClick={playNext}
-        className={`${sizeClasses[size].sideButton} rounded-full transition-all duration-300 focus:outline-none group ${
+        className={`${mobileClasses.sideButton} ${buttonBaseClasses} ${mobileButtonClasses} ${
           isDisabled 
             ? 'opacity-40 cursor-not-allowed text-gray-500' 
             : 'text-gray-300 hover:text-white hover:bg-white/10'
-        } ${!isDisabled ? 'hover:scale-110 active:scale-95' : ''}`}
+        }`}
+        style={tapHighlightStyle}
         disabled={isDisabled}
         aria-label="Next track"
       >
-        <SkipForward className={`${sizeClasses[size].icon} transition-transform group-hover:translate-x-0.5`} />
+        <SkipForward className={`${mobileClasses.icon} transition-transform group-hover:translate-x-0.5`} />
       </button>
 
       {/* Repeat Button */}
       {showRepeat && (
         <button
           onClick={handleRepeatClick}
-          className={`${sizeClasses[size].sideButton} rounded-full transition-all duration-300 focus:outline-none group ${
+          className={`${mobileClasses.sideButton} ${buttonBaseClasses} ${mobileButtonClasses} ${
             isDisabled 
               ? 'opacity-40 cursor-not-allowed' 
               : repeatMode !== 'none'
                 ? 'text-purple-400 hover:text-purple-300 bg-purple-500/20 hover:bg-purple-500/30' 
                 : 'text-gray-400 hover:text-white hover:bg-white/10'
-          } ${!isDisabled ? 'hover:scale-110 active:scale-95' : ''}`}
+          }`}
+          style={tapHighlightStyle}
           disabled={isDisabled}
           aria-label={`Repeat: ${repeatMode}`}
         >
