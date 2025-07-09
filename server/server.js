@@ -724,13 +724,95 @@ app.post('/api/generate-mood-playlist', async (req, res) => {
                 }
             }));
             
+            // Extract mood from the original prompt and generate AI title
+            let userMood = 'your mood';
+            let playlistTitle = `Mood Playlist - ${new Date().toLocaleDateString()}`;
+            let playlistDescription = `Generated playlist based on your mood`;
+            
+            try {
+                // Extract the mood from the prompt with multiple patterns
+                let moodMatch = prompt.match(/perfectly match a?\s*["']([^"']+)["']\s*mood/i);
+                
+                // Fallback patterns for different prompt formats
+                if (!moodMatch) {
+                    moodMatch = prompt.match(/based on.*["']([^"']+)["']/i) ||
+                               prompt.match(/feeling\s+([^"'.!?]+)/i) ||
+                               prompt.match(/when.*["']([^"']+)["']/i) ||
+                               prompt.match(/["']([^"']{5,50})["'].*mood/i);
+                }
+                
+                // Handle simple mood words (happy, sad, energetic, etc.) from questionnaire
+                if (!moodMatch) {
+                    const simpleMoods = ['happy', 'sad', 'energetic', 'relaxed', 'angry', 'nostalgic', 'excited', 'calm', 'melancholic', 'joyful'];
+                    const simpleMoodPattern = new RegExp(`\\b(${simpleMoods.join('|')})\\b`, 'i');
+                    const simpleMoodFound = prompt.match(simpleMoodPattern);
+                    if (simpleMoodFound) {
+                        moodMatch = [null, simpleMoodFound[1]]; // Format to match expected structure
+                    }
+                }
+                
+                if (moodMatch && moodMatch[1]) {
+                    userMood = moodMatch[1].trim();
+                    console.log('Extracted user mood:', userMood);
+                    
+                    // Generate creative title using Gemini AI
+                    const titlePrompt = `Create a creative, catchy, and poetic playlist title (maximum 5 words) for someone who is "${userMood}". The title should capture the essence of this emotional state and be suitable for a music playlist. Make it evocative and memorable. Just return the title, nothing else.`;
+                    
+                    const titlePayload = {
+                        contents: [{
+                            role: "user",
+                            parts: [{ text: titlePrompt }]
+                        }],
+                        generationConfig: {
+                            temperature: 0.8,
+                            topK: 40,
+                            topP: 0.9,
+                            maxOutputTokens: 50,
+                        }
+                    };
+                    
+                    const titleResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(titlePayload)
+                    });
+                    
+                    if (titleResponse.ok) {
+                        const titleData = await titleResponse.json();
+                        if (titleData.candidates && titleData.candidates[0] && titleData.candidates[0].content) {
+                            const generatedTitle = titleData.candidates[0].content.parts[0].text.trim();
+                            // Clean up the title (remove quotes if present)
+                            playlistTitle = generatedTitle.replace(/['"]/g, '').trim();
+                            console.log('Generated AI title:', playlistTitle);
+                        }
+                    } else {
+                        console.warn('Failed to generate AI title, using fallback');
+                    }
+                    
+                    // Generate enhanced description based on mood type
+                    if (userMood.length <= 15) {
+                        // Simple mood word
+                        playlistDescription = `A curated selection for when you're feeling ${userMood}`;
+                    } else {
+                        // Descriptive mood phrase
+                        playlistDescription = `A curated selection for when you're ${userMood}`;
+                    }
+                } else {
+                    console.log('Could not extract mood from prompt, using default title');
+                }
+            } catch (titleError) {
+                console.error('Error generating AI title:', titleError);
+                console.log('Using fallback title');
+            }
+
             // Create a properly formatted playlist object
             const playlist = {
                 id: Date.now().toString(),
-                title: `Mood Playlist - ${new Date().toLocaleDateString()}`,
-                description: `Generated playlist based on your mood`,
+                title: playlistTitle,
+                description: playlistDescription,
                 songs: songsWithVideoIds,
-                createdAt: new Date().toISOString()
+                createdAt: new Date().toISOString(),
+                prompt: userMood // Store the original mood for reference
             };
 
             playlists.push(playlist); // Save to in-memory storage
