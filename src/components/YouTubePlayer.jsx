@@ -8,23 +8,9 @@ const YouTubePlayer = ({ videoId, onReady, onStateChange }) => {
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [currentVideoId, setCurrentVideoId] = useState(null);
   const retryCountRef = useRef(0);
   const maxRetries = 3;
   const loadTimeoutRef = useRef(null);
-  
-  // Store callbacks in refs to prevent unnecessary recreations
-  const onReadyRef = useRef(onReady);
-  const onStateChangeRef = useRef(onStateChange);
-  
-  // Update refs when callbacks change
-  useEffect(() => {
-    onReadyRef.current = onReady;
-  }, [onReady]);
-  
-  useEffect(() => {
-    onStateChangeRef.current = onStateChange;
-  }, [onStateChange]);
 
   // Check if YouTube API is already loaded
   const checkApiReady = useCallback(() => {
@@ -152,8 +138,6 @@ const YouTubePlayer = ({ videoId, onReady, onStateChange }) => {
     setHasError(false);
     setErrorMessage('');
 
-    console.log('Creating YouTube player for video:', videoId);
-
     // Initialize the player with improved configuration
     try {
       playerRef.current = new window.YT.Player(containerRef.current, {
@@ -176,25 +160,23 @@ const YouTubePlayer = ({ videoId, onReady, onStateChange }) => {
         },
         events: {
           onReady: (event) => {
-            console.log('YouTube player ready for video:', videoId);
             setIsPlayerReady(true);
             setHasError(false);
             setErrorMessage('');
             retryCountRef.current = 0;
-            setCurrentVideoId(videoId);
             
-            if (onReadyRef.current && typeof onReadyRef.current === 'function') {
+            if (onReady && typeof onReady === 'function') {
               try {
-                onReadyRef.current(event.target);
+                onReady(event.target);
               } catch (error) {
                 console.error('Error in onReady callback:', error);
               }
             }
           },
           onStateChange: (event) => {
-            if (onStateChangeRef.current && typeof onStateChangeRef.current === 'function') {
+            if (onStateChange && typeof onStateChange === 'function') {
               try {
-                onStateChangeRef.current(event);
+                onStateChange(event);
               } catch (error) {
                 console.error('Error in onStateChange callback:', error);
               }
@@ -267,38 +249,14 @@ const YouTubePlayer = ({ videoId, onReady, onStateChange }) => {
         }, retryDelay);
       }
     }
-  }, [isApiReady, videoId, hasError]);
+  }, [isApiReady, videoId, hasError, onReady, onStateChange]);
 
-  // Load different video in existing player instead of recreating
-  const loadVideo = useCallback((newVideoId) => {
-    if (playerRef.current && isPlayerReady && newVideoId && newVideoId !== currentVideoId) {
-      console.log('Loading new video in existing player:', newVideoId);
-      try {
-        playerRef.current.loadVideoById(newVideoId);
-        setCurrentVideoId(newVideoId);
-      } catch (error) {
-        console.error('Error loading new video:', error);
-        // If loading fails, recreate the player
-        createPlayer();
-      }
-    }
-  }, [isPlayerReady, currentVideoId, createPlayer]);
-
-  // Create player when API is ready and video ID is provided for the first time
+  // Create player when API is ready and video ID changes
   useEffect(() => {
-    if (isApiReady && videoId && !playerRef.current) {
-      console.log('Initial player creation for video:', videoId);
+    if (isApiReady && videoId) {
       createPlayer();
     }
   }, [isApiReady, videoId, createPlayer]);
-
-  // Handle video changes - use loadVideo instead of recreating player
-  useEffect(() => {
-    if (videoId && videoId !== currentVideoId && isPlayerReady) {
-      console.log('Video change detected:', currentVideoId, '->', videoId);
-      loadVideo(videoId);
-    }
-  }, [videoId, currentVideoId, isPlayerReady, loadVideo]);
 
   // Render player container and error message if any
   return (

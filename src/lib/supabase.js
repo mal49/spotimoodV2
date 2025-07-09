@@ -7,13 +7,4 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables')
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true,
-    storage: window.localStorage,
-    storageKey: 'spotimood-auth-token',
-    flowType: 'pkce'
-  }
-}) 
+export const supabase = createClient(supabaseUrl, supabaseAnonKey) 

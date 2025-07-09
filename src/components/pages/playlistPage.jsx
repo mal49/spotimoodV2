@@ -4,27 +4,26 @@ import { usePlayer } from '../../context/PlayerContext';
 import { Play, Heart, MoreHorizontal, Shuffle } from 'lucide-react';
 import config from '../../lib/config.js';
 
-// Move constants outside component to prevent recreation on every render
-const DEFAULT_PLAYLIST_TITLE = "MY FAVORITE HITS";
-const DEFAULT_PLAYLIST_DESCRIPTION = "A mix of all your best tunes. By user • 10 songs, 38 min";
-const DEFAULT_SONGS = [
-    { id: 1, title: 'Song Title One', artist: 'Artist A', album: 'Album X', duration: '3:45' },
-    { id: 2, title: 'Another Tune', artist: 'Artist B', album: 'Album Y', duration: '4:10' },
-    { id: 3, title: 'Track Three', artist: 'Artist C', album: 'Album Z', duration: '2:55' },
-    { id: 4, title: 'Melody Four', artist: 'Artist D', album: 'Album W', duration: '3:20' },
-    { id: 5, title: 'The Fifth Song', artist: 'Artist E', album: 'Album V', duration: '4:50' },
-    { id: 6, title: 'Sixth Symphony', artist: 'Artist F', album: 'Album U', duration: '3:00' },
-    { id: 7, title: 'Seventh Heaven', artist: 'Artist G', album: 'Album T', duration: '3:30' },
-    { id: 8, title: 'Eighth Wonder', artist: 'Artist H', album: 'Album S', duration: '4:00' },
-    { id: 9, title: 'Ninth Note', artist: 'Artist I', album: 'Album R', duration: '3:15' },
-    { id: 10, title: 'Tenth Tune', artist: 'Artist J', album: 'Album Q', duration: '3:55' },
-];
-
 export default function PlaylistPage({playlistData, onBack}){
+    const defaultPlaylistTitle = "MY FAVORITE HITS";
+    const defaultPlaylistDescription = "A mix of all your best tunes. By user • 10 songs, 38 min";
+    const defaultSong = [
+        { id: 1, title: 'Song Title One', artist: 'Artist A', album: 'Album X', duration: '3:45' },
+        { id: 2, title: 'Another Tune', artist: 'Artist B', album: 'Album Y', duration: '4:10' },
+        { id: 3, title: 'Track Three', artist: 'Artist C', album: 'Album Z', duration: '2:55' },
+        { id: 4, title: 'Melody Four', artist: 'Artist D', album: 'Album W', duration: '3:20' },
+        { id: 5, title: 'The Fifth Song', artist: 'Artist E', album: 'Album V', duration: '4:50' },
+        { id: 6, title: 'Sixth Symphony', artist: 'Artist F', album: 'Album U', duration: '3:00' },
+        { id: 7, title: 'Seventh Heaven', artist: 'Artist G', album: 'Album T', duration: '3:30' },
+        { id: 8, title: 'Eighth Wonder', artist: 'Artist H', album: 'Album S', duration: '4:00' },
+        { id: 9, title: 'Ninth Note', artist: 'Artist I', album: 'Album R', duration: '3:15' },
+        { id: 10, title: 'Tenth Tune', artist: 'Artist J', album: 'Album Q', duration: '3:55' },
+    ];
+
     const currentPlaylist = playlistData || {
-        title: DEFAULT_PLAYLIST_TITLE,
-        description: DEFAULT_PLAYLIST_DESCRIPTION,
-        songs: DEFAULT_SONGS,
+        title: defaultPlaylistTitle,
+        description: defaultPlaylistDescription,
+        songs: defaultSong,
     };
 
     const [playlistDescription, setPlaylistDescription] = useState(currentPlaylist.description);
@@ -33,14 +32,13 @@ export default function PlaylistPage({playlistData, onBack}){
 
     const { setQueue, setCurrentIndex, setPlaying } = usePlayer();
 
-    // Fixed useEffect - only depend on playlistData since constants are now stable
     React.useEffect(() => {
         if (playlistData) {
             setPlaylistDescription(playlistData.description);
         } else {
-            setPlaylistDescription(DEFAULT_PLAYLIST_DESCRIPTION);
+            setPlaylistDescription(defaultPlaylistDescription);
         }
-    }, [playlistData]); // Removed defaultPlaylistDescription from dependencies
+    }, [playlistData, defaultPlaylistDescription]);
 
     const generatedPlaylistDescription = async () => {
         setIsLoadingDescription(true);
@@ -79,29 +77,33 @@ export default function PlaylistPage({playlistData, onBack}){
     const handlePlayAll = () => {
         if (!currentPlaylist.songs?.length) return;
         
-        // Set the entire playlist as the queue - FIXED: pass array to setQueue
-        const playableSongs = currentPlaylist.songs.map(song => ({
-            id: song.id,
-            title: song.title,
-            artist: song.artist,
-            thumbnail: song.thumbnail
-        }));
+        // Set the entire playlist as the queue
+        currentPlaylist.songs.forEach(song => {
+            setQueue({
+                id: song.id,
+                title: song.title,
+                artist: song.artist,
+                thumbnail: song.thumbnail
+            });
+        });
         
-        setQueue(playableSongs);
+        // Start playing from the first song
         setCurrentIndex(0);
         setPlaying(true);
     };
 
     const handlePlaySong = (song, index) => {
-        // Set the queue starting from the selected song - FIXED: pass array to setQueue
-        const playableSongs = currentPlaylist.songs.slice(index).map(s => ({
-            id: s.id,
-            title: s.title,
-            artist: s.artist,
-            thumbnail: s.thumbnail
-        }));
+        // Set the queue starting from the selected song
+        currentPlaylist.songs.slice(index).forEach(s => {
+            setQueue({
+                id: s.id,
+                title: s.title,
+                artist: s.artist,
+                thumbnail: s.thumbnail
+            });
+        });
         
-        setQueue(playableSongs);
+        // Start playing from the first song in the new queue
         setCurrentIndex(0);
         setPlaying(true);
     };

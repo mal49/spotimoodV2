@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { usePlayer } from '../context/PlayerContext';
 import { usePlaylist } from '../context/PlaylistContext';
@@ -23,19 +23,12 @@ export default function PlaylistDetail() {
     const [editedTitle, setEditedTitle] = useState('');
     const [editedDescription, setEditedDescription] = useState('');
     const [isRegenerating, setIsRegenerating] = useState(false);
-    
-    // Track if we've loaded this playlist to prevent unnecessary reloads
-    const loadedPlaylistRef = useRef(null);
 
     useEffect(() => {
-        if (playlistId && playlistId !== loadedPlaylistRef.current) {
-            console.log('PlaylistDetail: Loading playlist for first time:', playlistId);
+        if (playlistId) {
             fetchPlaylistById(playlistId);
-            loadedPlaylistRef.current = playlistId;
-        } else if (playlistId === loadedPlaylistRef.current) {
-            console.log('PlaylistDetail: Playlist already loaded, skipping reload');
         }
-    }, [playlistId]); // Removed fetchPlaylistById from dependencies
+    }, [playlistId, fetchPlaylistById]);
 
     useEffect(() => {
         if (currentPlaylist) {
