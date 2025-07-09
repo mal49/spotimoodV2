@@ -143,7 +143,6 @@ export default function NowPlayingBar() {
     artist: '—',
     id: '',
   };
-
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-r from-gray-900/95 via-gray-800/95 to-gray-900/95 backdrop-blur-xl px-2 sm:px-4 py-2 z-50 shadow-2xl mobile-player-controls">
       {/* Progress Bar - Acting as Top Border */}
@@ -288,7 +287,7 @@ export default function NowPlayingBar() {
           <span>{formatTime(currentTime)}</span>
           <span>{formatTime(duration)}</span>
         </div>
-      }
+      </div>
 
       {/* Desktop Layout */}
       <div className="hidden sm:block">
