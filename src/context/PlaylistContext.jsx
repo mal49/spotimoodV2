@@ -318,7 +318,7 @@ export function PlaylistProvider({ children }) {
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  }, [state.currentPlaylist, fetchPlaylistById]);
+  }, [state.currentPlaylist]);
 
   const removeSongFromPlaylist = useCallback(async (playlistId, songId) => {
     dispatch({ type: 'SET_LOADING', payload: true });
@@ -353,7 +353,7 @@ export function PlaylistProvider({ children }) {
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  }, [state.currentPlaylist, fetchPlaylistById]);
+  }, [state.currentPlaylist]);
 
   const reorderPlaylistSongs = useCallback(async (playlistId, songIds) => {
     dispatch({ type: 'SET_LOADING', payload: true });
@@ -401,7 +401,7 @@ export function PlaylistProvider({ children }) {
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  }, [state.currentPlaylist, fetchPlaylistById]);
+  }, [state.currentPlaylist]);
 
   const setCreating = useCallback((isCreating) => {
     dispatch({ type: 'SET_CREATING', payload: isCreating });
