@@ -134,12 +134,16 @@ export function PlayerProvider({ children }) {
       try {
         const volumeToSet = pendingVolumeRef.current || state.volume;
         console.log('Setting initial volume on player ready:', volumeToSet);
-        safePlayerCall('setVolume', volumeToSet);
-        pendingVolumeRef.current = null;
+        if (typeof player.setVolume === 'function') {
+          player.setVolume(volumeToSet);
+          console.log('Initial volume set successfully');
+          pendingVolumeRef.current = null;
+        }
       } catch (error) {
-        console.warn('Error setting initial volume:', error);
+        console.warn('Error setting initial volume (non-critical):', error);
+        pendingVolumeRef.current = null;
       }
-    }, 100);
+    }, 200);
     
     // Get initial duration
     setTimeout(() => {
@@ -168,16 +172,21 @@ export function PlayerProvider({ children }) {
         
         // Apply any pending volume changes when playing starts (safe state)
         setTimeout(() => {
-          if (pendingVolumeRef.current !== null) {
+          if (pendingVolumeRef.current !== null && playerRef.current) {
             console.log('Applying pending volume change during play state:', pendingVolumeRef.current);
             try {
-              safePlayerCall('setVolume', pendingVolumeRef.current);
-              pendingVolumeRef.current = null;
+              if (typeof playerRef.current.setVolume === 'function') {
+                playerRef.current.setVolume(pendingVolumeRef.current);
+                console.log('Pending volume applied successfully');
+                pendingVolumeRef.current = null;
+              }
             } catch (error) {
-              console.warn('Error applying pending volume:', error);
+              console.warn('Error applying pending volume (non-critical):', error);
+              // Clear pending volume even if it fails to prevent loops
+              pendingVolumeRef.current = null;
             }
           }
-        }, 50);
+        }, 100);
         
         // Ensure we have duration when playing starts
         setTimeout(() => {
@@ -267,7 +276,7 @@ export function PlayerProvider({ children }) {
     }
   }, [state.queue.length, state.currentIndex, state.isPlaying, safePlayerCall]);
 
-  // Improved volume control with better state management
+  // Simplified and safer volume control
   const setVolume = useCallback((volume) => {
     const clampedVolume = Math.max(0, Math.min(100, volume));
     
@@ -279,46 +288,26 @@ export function PlayerProvider({ children }) {
       clearTimeout(volumeTimeoutRef.current);
     }
     
-    // Check if we can safely apply volume immediately
-    const canApplyVolume = isPlayerReadyRef.current && 
-                          playerRef.current && 
-                          !state.hasError && 
-                          !state.isBuffering && 
-                          state.isPlaying;
-    
-    if (canApplyVolume) {
-      // Safe to apply immediately with debounce
-      volumeTimeoutRef.current = setTimeout(() => {
+    // Simple debounced volume application - no complex state checking
+    volumeTimeoutRef.current = setTimeout(() => {
+      if (isPlayerReadyRef.current && playerRef.current) {
         try {
-          console.log('Setting player volume immediately to:', clampedVolume);
-          safePlayerCall('setVolume', clampedVolume);
-          pendingVolumeRef.current = null;
-        } catch (error) {
-          console.warn('Error setting volume immediately:', error);
-          // Store as pending if immediate application fails
-          pendingVolumeRef.current = clampedVolume;
-        }
-      }, 100);
-    } else {
-      // Store as pending and apply when player is in safe state
-      console.log('Storing volume change as pending:', clampedVolume);
-      pendingVolumeRef.current = clampedVolume;
-      
-      // If player is ready but just not playing, try after a short delay
-      if (isPlayerReadyRef.current && playerRef.current && !state.hasError && !state.isBuffering) {
-        volumeTimeoutRef.current = setTimeout(() => {
-          try {
-            console.log('Attempting delayed volume application:', clampedVolume);
-            safePlayerCall('setVolume', clampedVolume);
-            pendingVolumeRef.current = null;
-          } catch (error) {
-            console.warn('Error setting volume with delay:', error);
-            // Keep as pending if this fails too
+          console.log('Setting player volume to:', clampedVolume);
+          // Direct call without triggering any other state changes
+          if (typeof playerRef.current.setVolume === 'function') {
+            playerRef.current.setVolume(clampedVolume);
+            console.log('Volume successfully set');
           }
-        }, 500);
+        } catch (error) {
+          console.warn('Error setting volume (non-critical):', error);
+          // Don't propagate volume errors - they shouldn't affect playback
+        }
+      } else {
+        console.log('Player not ready for volume change, storing as pending');
+        pendingVolumeRef.current = clampedVolume;
       }
-    }
-  }, [safePlayerCall, state.hasError, state.isBuffering, state.isPlaying]);
+    }, 200); // Longer debounce for stability
+  }, []);
 
   const seekTo = useCallback((time) => {
     const clampedTime = Math.max(0, Math.min(state.duration, time));
@@ -382,6 +371,7 @@ export function PlayerProvider({ children }) {
       // Load the new video
       if (currentSong.id) {
         try {
+          console.log('Loading new video:', currentSong.title);
           safePlayerCall('loadVideoById', currentSong.id);
           
           // Get duration after loading
@@ -405,7 +395,7 @@ export function PlayerProvider({ children }) {
         }
       }
     }
-  }, [state.currentIndex, state.queue, state.isPlaying, safePlayerCall]);
+  }, [state.currentIndex, state.queue, safePlayerCall]); // Removed state.isPlaying to prevent unnecessary reloads
 
   // Cleanup on unmount
   useEffect(() => {

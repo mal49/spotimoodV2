@@ -9,9 +9,7 @@ const config = {
   // YouTube API Configuration
   youtube: {
     apiKey: import.meta.env.VITE_YOUTUBE_API_KEY,
-    embedOrigin: import.meta.env.PROD 
-      ? 'https://spotimood-production.up.railway.app' 
-      : 'http://localhost:5173', // Default Vite dev server port
+    embedOrigin: window.location.origin, // Use current origin to prevent CORS issues
     iframeApiUrl: 'https://www.youtube.com/iframe_api'
   }
 };
