@@ -9,40 +9,82 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null);
 
   useEffect(() => {
-    // Get initial session
+    let mounted = true;
+
+    // Get initial session with better error handling
     const getInitialSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        await fetchUserProfile(session.user.id);
+      try {
+        console.log('AuthContext: Getting initial session...');
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('AuthContext: Error getting initial session:', error);
+          // Don't throw here, just log and continue
+        }
+        
+        if (mounted) {
+          console.log('AuthContext: Initial session result:', {
+            hasSession: !!session,
+            hasUser: !!session?.user,
+            userId: session?.user?.id
+          });
+          
+          setUser(session?.user ?? null);
+          
+          if (session?.user) {
+            await fetchUserProfile(session.user.id);
+          }
+          
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('AuthContext: Unexpected error getting initial session:', error);
+        if (mounted) {
+          setUser(null);
+          setProfile(null);
+          setLoading(false);
+        }
       }
-      
-      setLoading(false);
     };
 
     getInitialSession();
 
-    // Listen for auth changes
+    // Listen for auth changes with better error handling
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        setUser(session?.user ?? null);
+        console.log('AuthContext: Auth state change:', { event, hasSession: !!session });
         
-        if (session?.user) {
-          await fetchUserProfile(session.user.id);
-        } else {
-          setProfile(null);
+        if (!mounted) return;
+        
+        try {
+          setUser(session?.user ?? null);
+          
+          if (session?.user) {
+            await fetchUserProfile(session.user.id);
+          } else {
+            setProfile(null);
+          }
+          
+          setLoading(false);
+        } catch (error) {
+          console.error('AuthContext: Error handling auth state change:', error);
+          if (mounted) {
+            setLoading(false);
+          }
         }
-        
-        setLoading(false);
       }
     );
 
-    return () => subscription.unsubscribe();
+    // Cleanup function
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const fetchUserProfile = async (userId) => {
     try {
+      console.log('AuthContext: Fetching profile for user:', userId);
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -54,6 +96,7 @@ export function AuthProvider({ children }) {
         return;
       }
 
+      console.log('AuthContext: Profile fetched:', { hasProfile: !!data });
       setProfile(data);
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -112,10 +155,17 @@ export function AuthProvider({ children }) {
       setUser(null);
       setProfile(null);
       
+      // Clear any cached auth data
+      localStorage.removeItem('spotimood-auth-token');
+      
       console.log('AuthContext: Sign out completed successfully');
       return { error: null };
     } catch (error) {
       console.error('AuthContext: Error signing out:', error);
+      // Force clear local state even if sign out fails
+      setUser(null);
+      setProfile(null);
+      localStorage.removeItem('spotimood-auth-token');
       return { error };
     }
   };

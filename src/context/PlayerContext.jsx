@@ -2,6 +2,49 @@ import React, { createContext, useContext, useReducer, useRef, useEffect, useCal
 
 const PlayerContext = createContext();
 
+// State persistence helpers
+const PLAYER_STORAGE_KEY = 'spotimood-player-state';
+
+const loadPersistedPlayerState = () => {
+  try {
+    const saved = localStorage.getItem(PLAYER_STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      return {
+        queue: parsed.queue || [],
+        currentIndex: parsed.currentIndex ?? -1,
+        volume: parsed.volume ?? 100,
+        isShuffle: parsed.isShuffle || false,
+        repeatMode: parsed.repeatMode || 'none',
+        // Don't restore playback state - always start paused
+        isPlaying: false,
+        duration: 0,
+        currentTime: 0,
+        isBuffering: false,
+        hasError: false,
+      };
+    }
+  } catch (error) {
+    console.warn('Failed to load persisted player state:', error);
+  }
+  return {};
+};
+
+const savePlayerStateToStorage = (state) => {
+  try {
+    const stateToSave = {
+      queue: state.queue,
+      currentIndex: state.currentIndex,
+      volume: state.volume,
+      isShuffle: state.isShuffle,
+      repeatMode: state.repeatMode,
+    };
+    localStorage.setItem(PLAYER_STORAGE_KEY, JSON.stringify(stateToSave));
+  } catch (error) {
+    console.warn('Failed to save player state:', error);
+  }
+};
+
 const initialState = {
   queue: [],
   currentIndex: -1,
@@ -13,22 +56,27 @@ const initialState = {
   currentTime: 0,
   isBuffering: false,
   hasError: false,
+  ...loadPersistedPlayerState(), // Load persisted state
 };
 
 function playerReducer(state, action) {
+  let newState;
+  
   switch (action.type) {
     case 'ADD_TO_QUEUE':
-      return {
+      newState = {
         ...state,
         queue: [...state.queue, action.payload],
         currentIndex: state.currentIndex === -1 ? 0 : state.currentIndex,
       };
+      break;
     case 'SET_QUEUE':
-      return {
+      newState = {
         ...state,
         queue: action.payload,
         currentIndex: action.payload.length > 0 ? 0 : -1,
       };
+      break;
     case 'REMOVE_FROM_QUEUE':
       const newQueue = state.queue.filter((_, idx) => idx !== action.payload);
       let newCurrentIndex = state.currentIndex;
@@ -38,66 +86,85 @@ function playerReducer(state, action) {
       if (newQueue.length === 0) {
         newCurrentIndex = -1;
       }
-      return {
+      newState = {
         ...state,
         queue: newQueue,
         currentIndex: newCurrentIndex,
       };
+      break;
     case 'SET_CURRENT_INDEX':
-      return {
+      newState = {
         ...state,
         currentIndex: action.payload,
       };
+      break;
     case 'SET_PLAYING':
-      return {
+      newState = {
         ...state,
         isPlaying: action.payload,
         isBuffering: action.payload ? false : state.isBuffering,
       };
+      break;
     case 'SET_BUFFERING':
-      return {
+      newState = {
         ...state,
         isBuffering: action.payload,
       };
+      break;
     case 'SET_ERROR':
-      return {
+      newState = {
         ...state,
         hasError: action.payload,
         isPlaying: action.payload ? false : state.isPlaying,
         isBuffering: false,
       };
+      break;
     case 'TOGGLE_SHUFFLE':
-      return {
+      newState = {
         ...state,
         isShuffle: !state.isShuffle,
       };
+      break;
     case 'SET_REPEAT_MODE':
-      return {
+      newState = {
         ...state,
         repeatMode: action.payload,
       };
+      break;
     case 'SET_VOLUME':
-      return {
+      newState = {
         ...state,
         volume: action.payload,
       };
+      break;
     case 'SET_DURATION':
-      return {
+      newState = {
         ...state,
         duration: action.payload,
       };
+      break;
     case 'SET_CURRENT_TIME':
-      return {
+      newState = {
         ...state,
         currentTime: action.payload,
       };
+      break;
     case 'CLEAR_QUEUE':
-      return {
+      newState = {
         ...initialState,
+        volume: state.volume, // Keep volume setting
       };
+      break;
     default:
       return state;
   }
+  
+  // Save persistent state (but not playback state like isPlaying, currentTime, etc.)
+  if (['ADD_TO_QUEUE', 'SET_QUEUE', 'REMOVE_FROM_QUEUE', 'SET_CURRENT_INDEX', 'TOGGLE_SHUFFLE', 'SET_REPEAT_MODE', 'SET_VOLUME'].includes(action.type)) {
+    savePlayerStateToStorage(newState);
+  }
+  
+  return newState;
 }
 
 export function PlayerProvider({ children }) {
@@ -107,6 +174,35 @@ export function PlayerProvider({ children }) {
   const timeUpdateIntervalRef = useRef(null);
   const volumeTimeoutRef = useRef(null);
   const pendingVolumeRef = useRef(null);
+
+  // Add page visibility handling for player state
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        // Page is being hidden - save current state
+        savePlayerStateToStorage(state);
+      } else if (document.visibilityState === 'visible') {
+        // Page is visible again - restore volume setting if needed
+        if (isPlayerReadyRef.current && playerRef.current && state.volume !== pendingVolumeRef.current) {
+          setTimeout(() => {
+            try {
+              if (typeof playerRef.current.setVolume === 'function') {
+                playerRef.current.setVolume(state.volume);
+              }
+            } catch (error) {
+              console.warn('Error restoring volume after visibility change:', error);
+            }
+          }, 100);
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [state]);
 
   // Safe player function wrapper with improved error handling
   const safePlayerCall = useCallback((method, ...args) => {
@@ -204,7 +300,7 @@ export function PlayerProvider({ children }) {
       case 3: // Buffering
         dispatch({ type: 'SET_BUFFERING', payload: true });
         break;
-      case 0: // Video ended
+      case 0: // Ended
         dispatch({ type: 'SET_PLAYING', payload: false });
         dispatch({ type: 'SET_BUFFERING', payload: false });
         
@@ -290,32 +386,32 @@ export function PlayerProvider({ children }) {
     
     // Simple debounced volume application - no complex state checking
     volumeTimeoutRef.current = setTimeout(() => {
-      if (isPlayerReadyRef.current && playerRef.current) {
-        try {
-          console.log('Setting player volume to:', clampedVolume);
-          // Direct call without triggering any other state changes
-          if (typeof playerRef.current.setVolume === 'function') {
-            playerRef.current.setVolume(clampedVolume);
-            console.log('Volume successfully set');
-          }
-        } catch (error) {
-          console.warn('Error setting volume (non-critical):', error);
-          // Don't propagate volume errors - they shouldn't affect playback
+      try {
+        if (isPlayerReadyRef.current && playerRef.current && typeof playerRef.current.setVolume === 'function') {
+          playerRef.current.setVolume(clampedVolume);
+          console.log('Volume set successfully:', clampedVolume);
+          pendingVolumeRef.current = null;
+        } else {
+          // Store volume for when player becomes ready
+          pendingVolumeRef.current = clampedVolume;
+          console.log('Volume stored for later application:', clampedVolume);
         }
-      } else {
-        console.log('Player not ready for volume change, storing as pending');
+      } catch (error) {
+        console.warn('Error setting volume (will retry):', error);
         pendingVolumeRef.current = clampedVolume;
       }
-    }, 200); // Longer debounce for stability
+    }, 100);
   }, []);
 
   const seekTo = useCallback((time) => {
-    const clampedTime = Math.max(0, Math.min(state.duration, time));
-    safePlayerCall('seekTo', clampedTime);
-    dispatch({ type: 'SET_CURRENT_TIME', payload: clampedTime });
+    if (state.duration > 0) {
+      const clampedTime = Math.max(0, Math.min(state.duration, time));
+      dispatch({ type: 'SET_CURRENT_TIME', payload: clampedTime });
+      safePlayerCall('seekTo', clampedTime, true);
+    }
   }, [state.duration, safePlayerCall]);
 
-  // Improved time tracking with error handling
+  // Time tracking effect
   useEffect(() => {
     if (timeUpdateIntervalRef.current) {
       clearInterval(timeUpdateIntervalRef.current);

@@ -25,6 +25,7 @@ import ServicePage from './components/pages/servicePage.jsx'
 import ContactPage from './components/pages/contactPage.jsx'
 import PaymentPage from './components/pages/paymentPage.jsx'
 import FeedbackModal from './components/UI/FeedbackModal.jsx'
+import Toast from './components/UI/Toast.jsx'
 
 function MainLayout({ children }) {
   const { openFeedbackModal } = useApp();
@@ -88,11 +89,13 @@ function AppContent() {
     showMainApp,
     showMoodQuestionnaire,
     showFeedbackModal,
+    showStateRestoredToast,
     handleGetStarted,
     handleMoodSubmitted,
     handleAuthSuccess,
     closeMoodQuestionnaire,
-    closeFeedbackModal
+    closeFeedbackModal,
+    closeStateRestoredToast
   } = useApp();
 
   return (
@@ -133,6 +136,17 @@ function AppContent() {
           <FeedbackModal 
             isOpen={showFeedbackModal}
             onClose={closeFeedbackModal}
+          />
+        )}
+
+        {/* State restoration notification */}
+        {showStateRestoredToast && (
+          <Toast
+            message="Welcome back! Your session has been restored."
+            type="success"
+            duration={3000}
+            onClose={closeStateRestoredToast}
+            show={showStateRestoredToast}
           />
         )}
       </div>
