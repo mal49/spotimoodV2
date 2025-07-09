@@ -67,17 +67,34 @@ console.log('YouTube API Keys loaded:', {
 let currentKeyIndex = 0;
 let keyUsageMap = new Map();
 
-// Initialize key usage tracking
+// Initialize key usage tracking with quota costs
 YOUTUBE_API_KEYS.forEach((key, index) => {
     keyUsageMap.set(index, {
         quotaExceeded: false,
         resetTime: null,
         dailyQuotaUsed: 0,
-        lastResetDate: new Date().toDateString()
+        dailyQuotaCost: 0, // Track actual quota units, not just requests
+        lastResetDate: new Date().toDateString(),
+        requestCount: 0,
+        lastUsed: null,
+        errors: 0
     });
 });
 
-// Function to get next available API key
+// YouTube API quota costs (per operation)
+const YOUTUBE_QUOTA_COSTS = {
+    'search.list': 100,
+    'videos.list': 1,
+    'channels.list': 1,
+    'playlists.list': 1,
+    'playlistItems.list': 1
+};
+
+// Maximum quota per key per day
+const MAX_QUOTA_PER_KEY = 10000;
+const QUOTA_WARNING_THRESHOLD = 8000; // Start being more conservative at 80%
+
+// Function to get next available API key with smarter selection
 const getNextAvailableKey = () => {
     const today = new Date().toDateString();
     
@@ -88,25 +105,45 @@ const getNextAvailableKey = () => {
                 quotaExceeded: false,
                 resetTime: null,
                 dailyQuotaUsed: 0,
-                lastResetDate: today
+                dailyQuotaCost: 0,
+                lastResetDate: today,
+                requestCount: 0,
+                lastUsed: null,
+                errors: 0
             });
         }
     });
     
-    // Try to find a key that hasn't exceeded quota
-    for (let i = 0; i < YOUTUBE_API_KEYS.length; i++) {
-        const keyIndex = (currentKeyIndex + i) % YOUTUBE_API_KEYS.length;
-        const usage = keyUsageMap.get(keyIndex);
+    // Sort keys by health score (quota remaining, error count, last used)
+    const keyHealth = Array.from(keyUsageMap.entries()).map(([index, usage]) => {
+        const quotaRemaining = MAX_QUOTA_PER_KEY - usage.dailyQuotaCost;
+        const isAvailable = !usage.quotaExceeded || Date.now() >= usage.resetTime;
+        const errorRate = usage.requestCount > 0 ? usage.errors / usage.requestCount : 0;
+        const timeSinceLastUsed = usage.lastUsed ? Date.now() - usage.lastUsed : Infinity;
         
-        if (!usage.quotaExceeded || Date.now() >= usage.resetTime) {
-            currentKeyIndex = keyIndex;
-            return YOUTUBE_API_KEYS[keyIndex];
-        }
+        // Health score: higher is better
+        const healthScore = isAvailable ? 
+            (quotaRemaining * 1000) - (errorRate * 10000) + (timeSinceLastUsed / 1000) : 
+            -1;
+            
+        return { index, usage, quotaRemaining, isAvailable, healthScore };
+    }).sort((a, b) => b.healthScore - a.healthScore);
+    
+    // Select the healthiest available key
+    const bestKey = keyHealth.find(key => key.isAvailable && key.quotaRemaining > 0);
+    
+    if (bestKey) {
+        currentKeyIndex = bestKey.index;
+        return YOUTUBE_API_KEYS[bestKey.index];
     }
     
-    // If all keys are exhausted, return the first one
-    currentKeyIndex = 0;
-    return YOUTUBE_API_KEYS[0];
+    // If all keys are exhausted, return the one with the earliest reset time
+    const earliestReset = keyHealth.reduce((earliest, current) => 
+        (current.usage.resetTime || 0) < (earliest.usage.resetTime || 0) ? current : earliest
+    );
+    
+    currentKeyIndex = earliestReset.index;
+    return YOUTUBE_API_KEYS[earliestReset.index];
 };
 
 // Function to mark a key as quota exceeded
@@ -115,70 +152,142 @@ const markKeyQuotaExceeded = (keyIndex) => {
     if (usage) {
         usage.quotaExceeded = true;
         usage.resetTime = Date.now() + (24 * 60 * 60 * 1000); // Reset in 24 hours
+        usage.errors += 1;
+        console.log(`Key ${keyIndex} marked as quota exceeded. Total errors: ${usage.errors}, Quota used: ${usage.dailyQuotaCost}/${MAX_QUOTA_PER_KEY}`);
         keyUsageMap.set(keyIndex, usage);
     }
 };
 
-// Function to increment key usage
-const incrementKeyUsage = (keyIndex) => {
+// Function to increment key usage with quota cost tracking
+const incrementKeyUsage = (keyIndex, operation = 'unknown', quotaCost = 1) => {
     const usage = keyUsageMap.get(keyIndex);
     if (usage) {
         usage.dailyQuotaUsed += 1;
+        usage.dailyQuotaCost += quotaCost;
+        usage.requestCount += 1;
+        usage.lastUsed = Date.now();
+        
+        // Check if approaching quota limit
+        if (usage.dailyQuotaCost >= QUOTA_WARNING_THRESHOLD && !usage.quotaExceeded) {
+            console.warn(`Key ${keyIndex} approaching quota limit: ${usage.dailyQuotaCost}/${MAX_QUOTA_PER_KEY} (${Math.round((usage.dailyQuotaCost/MAX_QUOTA_PER_KEY)*100)}%)`);
+        }
+        
+        // Proactively mark as exceeded if we're very close to the limit
+        if (usage.dailyQuotaCost >= MAX_QUOTA_PER_KEY - 100 && !usage.quotaExceeded) {
+            console.log(`Proactively marking key ${keyIndex} as quota exceeded to prevent API errors`);
+            usage.quotaExceeded = true;
+            usage.resetTime = Date.now() + (24 * 60 * 60 * 1000);
+        }
+        
+        console.log(`Key ${keyIndex} used for ${operation}: quota cost +${quotaCost}, total: ${usage.dailyQuotaCost}/${MAX_QUOTA_PER_KEY}`);
+        keyUsageMap.set(keyIndex, usage);
+    }
+};
+
+// Function to record successful request
+const recordSuccessfulRequest = (keyIndex, operation) => {
+    const quotaCost = YOUTUBE_QUOTA_COSTS[operation] || 1;
+    incrementKeyUsage(keyIndex, operation, quotaCost);
+};
+
+// Function to record failed request
+const recordFailedRequest = (keyIndex, operation, error) => {
+    const usage = keyUsageMap.get(keyIndex);
+    if (usage) {
+        usage.errors += 1;
+        usage.requestCount += 1;
+        usage.lastUsed = Date.now();
+        console.error(`Key ${keyIndex} failed request for ${operation}: ${error.message}`);
         keyUsageMap.set(keyIndex, usage);
     }
 };
 
 // Helper function to make YouTube API request with automatic key rotation
-const makeYouTubeRequest = async (requestFunction, maxRetries = YOUTUBE_API_KEYS.length) => {
+const makeYouTubeRequest = async (requestFunction, operation = 'unknown', maxRetries = YOUTUBE_API_KEYS.length) => {
     let lastError = null;
     let attempts = 0;
     
     while (attempts < maxRetries) {
+        const startTime = Date.now();
+        const selectedKeyIndex = currentKeyIndex;
+        
         try {
             const apiKey = getNextAvailableKey();
             const youtube = createYouTubeAPI(apiKey);
             
-            console.log(`YouTube API request attempt ${attempts + 1}/${maxRetries} using key index ${currentKeyIndex}`);
+            console.log(`YouTube API ${operation} request attempt ${attempts + 1}/${maxRetries} using key index ${currentKeyIndex}`);
             
             const result = await requestFunction(youtube);
             
-            // Increment quota usage on success
-            incrementKeyUsage(currentKeyIndex);
+            // Record successful request with proper quota cost tracking
+            recordSuccessfulRequest(currentKeyIndex, operation);
+            
+            const duration = Date.now() - startTime;
+            console.log(`YouTube API ${operation} succeeded in ${duration}ms using key ${currentKeyIndex}`);
             
             return result;
         } catch (error) {
             lastError = error;
             attempts++;
             
-            console.error(`YouTube API request failed (attempt ${attempts}):`, error.message);
+            const duration = Date.now() - startTime;
+            console.error(`YouTube API ${operation} request failed (attempt ${attempts}) in ${duration}ms:`, error.message);
+            
+            // Record failed request
+            recordFailedRequest(selectedKeyIndex, operation, error);
             
             // Handle quota exceeded error
             if (error.response?.status === 403 && 
                 error.response?.data?.error?.errors?.[0]?.reason === 'quotaExceeded') {
                 
-                console.log(`Quota exceeded for key index ${currentKeyIndex}, marking as exceeded`);
-                markKeyQuotaExceeded(currentKeyIndex);
+                console.log(`Quota exceeded for key index ${selectedKeyIndex}, marking as exceeded`);
+                markKeyQuotaExceeded(selectedKeyIndex);
                 
                 // Check if we have any available keys left
-                const hasAvailableKeys = Array.from(keyUsageMap.values()).some(usage => 
-                    !usage.quotaExceeded || Date.now() >= usage.resetTime
+                const availableKeys = Array.from(keyUsageMap.values()).filter(usage => 
+                    (!usage.quotaExceeded || Date.now() >= usage.resetTime) && 
+                    usage.dailyQuotaCost < MAX_QUOTA_PER_KEY - 100
                 );
                 
-                if (!hasAvailableKeys) {
-                    console.log('All YouTube API keys have exceeded quota');
+                if (availableKeys.length === 0) {
+                    console.log('All YouTube API keys have exceeded quota or are near limit');
+                    
+                    // Find the key with the earliest reset time
+                    const earliestReset = Array.from(keyUsageMap.values())
+                        .reduce((earliest, current) => 
+                            (current.resetTime || Infinity) < (earliest.resetTime || Infinity) ? current : earliest
+                        );
+                    
+                    const timeUntilReset = earliestReset.resetTime ? Math.ceil((earliestReset.resetTime - Date.now()) / 1000) : 24 * 60 * 60;
+                    lastError.retryAfter = timeUntilReset;
                     break;
+                }
+                
+                // Add exponential backoff before trying next key
+                const backoffTime = exponentialBackoff(attempts - 1);
+                if (backoffTime > 0) {
+                    console.log(`Applying backoff delay: ${backoffTime}ms before trying next key`);
+                    await new Promise(resolve => setTimeout(resolve, backoffTime));
                 }
                 
                 // Continue to next iteration to try another key
                 continue;
             }
             
-            // For other errors, break the retry loop
+            // Handle other 403 errors (invalid key, etc.)
+            if (error.response?.status === 403) {
+                console.error(`Key ${selectedKeyIndex} authentication error:`, error.response?.data?.error);
+                recordFailedRequest(selectedKeyIndex, operation, error);
+                continue; // Try next key
+            }
+            
+            // For non-quota errors, break the retry loop
             break;
         }
     }
     
     // If we get here, all retries failed
+    console.error(`All YouTube API ${operation} attempts failed after ${attempts} tries`);
     throw lastError;
 };
 
@@ -265,28 +374,146 @@ const checkRateLimit = (req, res, next) => {
 app.use('/api/search-music', checkRateLimit);
 app.use('/api/video/:videoId', checkRateLimit);
 
-// Debug endpoint to check API key status (remove in production)
+// Enhanced debug endpoint to check API key status and health
 app.get('/api/debug/keys', (req, res) => {
+    const now = Date.now();
+    const today = new Date().toDateString();
+    
+    // Calculate overall system health
+    const availableKeys = Array.from(keyUsageMap.values()).filter(usage => 
+        (!usage.quotaExceeded || now >= usage.resetTime) && 
+        usage.dailyQuotaCost < MAX_QUOTA_PER_KEY - 100
+    );
+    
+    const totalQuotaUsed = Array.from(keyUsageMap.values())
+        .reduce((total, usage) => total + usage.dailyQuotaCost, 0);
+    
+    const totalQuotaAvailable = YOUTUBE_API_KEYS.length * MAX_QUOTA_PER_KEY;
+    
     res.json({
-        totalKeys: YOUTUBE_API_KEYS.length,
-        currentKeyIndex,
-        keyStatus: Array.from(keyUsageMap.entries()).map(([index, usage]) => ({
-            keyIndex: index,
-            hasKey: !!YOUTUBE_API_KEYS[index],
-            keyPrefix: YOUTUBE_API_KEYS[index] ? YOUTUBE_API_KEYS[index].substring(0, 10) + '...' : 'missing',
-            quotaExceeded: usage.quotaExceeded,
-            dailyQuotaUsed: usage.dailyQuotaUsed,
-            resetTime: usage.resetTime,
-            lastResetDate: usage.lastResetDate,
-            isAvailable: !usage.quotaExceeded || Date.now() >= usage.resetTime
-        })),
+        systemHealth: {
+            status: availableKeys.length > 0 ? 'healthy' : 'degraded',
+            availableKeys: availableKeys.length,
+            totalKeys: YOUTUBE_API_KEYS.length,
+            totalQuotaUsed,
+            totalQuotaAvailable,
+            quotaUtilization: Math.round((totalQuotaUsed / totalQuotaAvailable) * 100),
+            timeUntilNextReset: getTimeUntilMidnight()
+        },
+        currentSettings: {
+            currentKeyIndex,
+            maxQuotaPerKey: MAX_QUOTA_PER_KEY,
+            warningThreshold: QUOTA_WARNING_THRESHOLD,
+            quotaCosts: YOUTUBE_QUOTA_COSTS
+        },
+        keyStatus: Array.from(keyUsageMap.entries()).map(([index, usage]) => {
+            const quotaRemaining = MAX_QUOTA_PER_KEY - usage.dailyQuotaCost;
+            const isAvailable = (!usage.quotaExceeded || now >= usage.resetTime) && quotaRemaining > 100;
+            const errorRate = usage.requestCount > 0 ? Math.round((usage.errors / usage.requestCount) * 100) : 0;
+            const timeSinceLastUsed = usage.lastUsed ? Math.round((now - usage.lastUsed) / 1000) : null;
+            
+            return {
+                keyIndex: index,
+                hasKey: !!YOUTUBE_API_KEYS[index],
+                keyPrefix: YOUTUBE_API_KEYS[index] ? YOUTUBE_API_KEYS[index].substring(0, 10) + '...' : 'missing',
+                status: isAvailable ? 'available' : usage.quotaExceeded ? 'quota_exceeded' : 'near_limit',
+                health: isAvailable && errorRate < 10 ? 'good' : errorRate > 30 ? 'poor' : 'fair',
+                quotaUsed: {
+                    requests: usage.dailyQuotaUsed,
+                    quotaCost: usage.dailyQuotaCost,
+                    remaining: quotaRemaining,
+                    percentage: Math.round((usage.dailyQuotaCost / MAX_QUOTA_PER_KEY) * 100)
+                },
+                performance: {
+                    totalRequests: usage.requestCount,
+                    errors: usage.errors,
+                    errorRate: errorRate,
+                    lastUsed: usage.lastUsed ? new Date(usage.lastUsed).toISOString() : null,
+                    timeSinceLastUsed: timeSinceLastUsed
+                },
+                availability: {
+                    isAvailable,
+                    quotaExceeded: usage.quotaExceeded,
+                    resetTime: usage.resetTime ? new Date(usage.resetTime).toISOString() : null,
+                    timeUntilReset: usage.resetTime ? Math.max(0, Math.ceil((usage.resetTime - now) / 1000)) : null,
+                    lastResetDate: usage.lastResetDate
+                }
+            };
+        }),
+        recommendations: generateKeyRecommendations(),
         environment: {
             NODE_ENV: process.env.NODE_ENV,
             hasGeminiKey: !!process.env.GEMINI_API_KEY,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            serverUptime: Math.round(process.uptime())
         }
     });
 });
+
+// Helper function to get time until midnight
+function getTimeUntilMidnight() {
+    const now = new Date();
+    const midnight = new Date(now);
+    midnight.setHours(24, 0, 0, 0);
+    return Math.ceil((midnight.getTime() - now.getTime()) / 1000);
+}
+
+// Helper function to generate recommendations based on key status
+function generateKeyRecommendations() {
+    const recommendations = [];
+    const now = Date.now();
+    
+    const availableKeys = Array.from(keyUsageMap.values()).filter(usage => 
+        (!usage.quotaExceeded || now >= usage.resetTime) && 
+        usage.dailyQuotaCost < MAX_QUOTA_PER_KEY - 100
+    );
+    
+    const totalQuotaUsed = Array.from(keyUsageMap.values())
+        .reduce((total, usage) => total + usage.dailyQuotaCost, 0);
+    
+    if (availableKeys.length === 0) {
+        recommendations.push({
+            severity: 'critical',
+            message: 'All API keys are exhausted or near quota limit',
+            action: 'Add more YouTube API keys or wait for quota reset'
+        });
+    } else if (availableKeys.length === 1) {
+        recommendations.push({
+            severity: 'warning',
+            message: 'Only one API key remaining',
+            action: 'Consider adding more API keys to ensure reliability'
+        });
+    }
+    
+    if (totalQuotaUsed > (YOUTUBE_API_KEYS.length * MAX_QUOTA_PER_KEY * 0.8)) {
+        recommendations.push({
+            severity: 'warning',
+            message: 'System using over 80% of total quota',
+            action: 'Monitor usage closely and consider adding more keys'
+        });
+    }
+    
+    // Check for keys with high error rates
+    Array.from(keyUsageMap.entries()).forEach(([index, usage]) => {
+        if (usage.requestCount > 10 && usage.errors / usage.requestCount > 0.3) {
+            recommendations.push({
+                severity: 'warning',
+                message: `Key ${index} has high error rate (${Math.round((usage.errors / usage.requestCount) * 100)}%)`,
+                action: 'Check key validity and configuration'
+            });
+        }
+    });
+    
+    if (recommendations.length === 0) {
+        recommendations.push({
+            severity: 'info',
+            message: 'All systems operating normally',
+            action: 'Continue monitoring'
+        });
+    }
+    
+    return recommendations;
+}
 
 // Enhanced YouTube search endpoint with proper error handling
 app.get('/api/search-music', async (req, res) => {
@@ -323,7 +550,7 @@ app.get('/api/search-music', async (req, res) => {
 
         const response = await makeYouTubeRequest(async (youtube) => {
             return youtube.search.list(searchParams);
-        });
+        }, 'search.list');
 
         // Transform response according to application needs
         const videos = response.data.items?.map(item => ({
@@ -340,7 +567,7 @@ app.get('/api/search-music', async (req, res) => {
             prevPageToken: response.data.prevPageToken,
             totalResults: response.data.pageInfo?.totalResults || 0,
             resultsPerPage: resultsCount,
-            quotaUsed: keyUsageMap.get(currentKeyIndex).dailyQuotaUsed // Include quota info for debugging
+            quotaUsed: keyUsageMap.get(currentKeyIndex).dailyQuotaCost // Include quota cost info for debugging
         });
 
     } catch (error) {
@@ -393,7 +620,7 @@ app.get('/api/video/:videoId', async (req, res) => {
                 id: videoId,
                 fields: 'items(id,snippet(title,description,channelTitle,thumbnails/high/url,publishedAt),contentDetails/duration,status(embeddable,privacyStatus),statistics(viewCount,likeCount))'
             });
-        });
+        }, 'videos.list');
 
         if (!response.data.items || response.data.items.length === 0) {
             console.log(`Video not found: ${videoId}`);
@@ -510,7 +737,7 @@ app.get('/api/search-music-multi', async (req, res) => {
 
             const response = await makeYouTubeRequest(async (youtube) => {
                 return youtube.search.list(searchParams);
-            });
+            }, 'search.list');
 
             // Transform response according to application needs
             results = response.data.items?.map(item => ({
@@ -681,7 +908,7 @@ app.post('/api/generate-mood-playlist', async (req, res) => {
                             videoEmbeddable: 'true', // Only embeddable videos
                             fields: 'items(id/videoId,snippet(title,channelTitle,thumbnails/high/url))'
                         });
-                    });
+                    }, 'search.list');
 
                     const videoData = searchResponse.data.items && searchResponse.data.items.length > 0 
                         ? searchResponse.data.items[0] 
